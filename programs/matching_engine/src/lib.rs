@@ -15,6 +15,17 @@ pub use states::*;
 pub mod errors;
 pub use errors::ErrorCode;
 
+// Macro to copy orderbook data - minimizes stack usage
+macro_rules! copy_orderbook_data {
+    ($orderbook_state:expr, $encrypted:expr) => {{
+        $orderbook_state.orderbook_nonce = $encrypted.nonce;
+        let ciphertexts = &$encrypted.ciphertexts;
+        for i in 0..52 {
+            $orderbook_state.orderbook_data[i] = ciphertexts[i];
+        }
+    }};
+}
+
 #[arcium_program]
 pub mod matching_engine {
     use super::*;
@@ -39,30 +50,36 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint: Pubkey, quote_mint: Pubkey) -> Result<()> {
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        backend_pubkey: [u8; 32],
+        base_mint: Pubkey,
+        quote_mint: Pubkey,
+    ) -> Result<()> {
         instructions::initialize(ctx, backend_pubkey, base_mint, quote_mint)?;
         Ok(())
     }
 
-    pub fn init_encrypted_orderbook(ctx: Context<InitEncryptedOrderbook>, computation_offset: u64) -> Result<()> {
+    pub fn init_encrypted_orderbook(
+        ctx: Context<InitEncryptedOrderbook>,
+        computation_offset: u64,
+    ) -> Result<()> {
         // Queue MPC computation to initialize encrypted orderbook
         let args = vec![
             Argument::PlaintextU128(0), // Initial nonce
         ];
-        
+
         ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
-        
+
         queue_computation(
             ctx.accounts,
             computation_offset,
             args,
             None,
-            vec![InitOrderBookCallback::callback_ix(&[
-                CallbackAccount {
-                    pubkey: ctx.accounts.orderbook_state.key(),
-                    is_writable: true,
-                },
-            ])],
+            vec![InitOrderBookCallback::callback_ix(&[CallbackAccount {
+                pubkey: ctx.accounts.orderbook_state.key(),
+                is_writable: true,
+            }])],
         )?;
         Ok(())
     }
@@ -72,42 +89,26 @@ pub mod matching_engine {
         ctx: Context<InitOrderBookCallback>,
         output: ComputationOutputs<InitOrderBookOutput>,
     ) -> Result<()> {
-        let o = match output {
-            ComputationOutputs::Success(InitOrderBookOutput { field_0: empty_orderbook,
-             }) => empty_orderbook,
+        process_init_orderbook_result(ctx, output)
+    }
+    #[inline(never)]
+    pub fn process_init_orderbook_result(
+        ctx: Context<InitOrderBookCallback>,
+        output: ComputationOutputs<InitOrderBookOutput>,
+    ) -> Result<()> {
+        let orderbook_enc = match &output {
+            ComputationOutputs::Success(InitOrderBookOutput { field_0 }) => field_0,
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
-        
-        // let orderbook_state = &mut ctx.accounts.orderbook_state;
-        // orderbook_state.orderbook_nonce = orderbook_encrypted.nonce;
-        
-        // // Store the encrypted ciphertexts
-        // for (i, chunk) in orderbook_encrypted.ciphertexts.iter().enumerate() {
-        //     let start = i * 32;
-        //     let end = start + 32;
-        //     if end <= orderbook_state.orderbook_data.len() {
-        //         orderbook_state.orderbook_data[start..end].copy_from_slice(chunk);
-        //     }
-        // }
 
-        let orderbook_nonce = o.nonce;
-        // let orderbook_data = o.ciphertexts;
+        // Copy orderbook data
+        copy_orderbook_data!(&mut ctx.accounts.orderbook_state, orderbook_enc);
 
+        ctx.accounts.orderbook_state.total_orders_processed = 0;
+        ctx.accounts.orderbook_state.total_matches = 0;
+        ctx.accounts.orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
 
-        let orderbook_state = &mut ctx.accounts.orderbook_state;
-        orderbook_state.orderbook_nonce = orderbook_nonce;
-        orderbook_state.total_orders_processed =0;
-        orderbook_state.total_matches =0;
-        orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
-
-        emit!(OrderBookInitializedEvent {
-            orderbook_nonce,
-            total_orders_processed: 0,
-            total_matches: 0,
-            last_match_timestamp: Clock::get()?.unix_timestamp,
-        });
-        
-        msg!("Encrypted orderbook initialized with nonce: {}", orderbook_nonce);
+        msg!("Orderbook initialized");
         Ok(())
     }
 
@@ -116,15 +117,30 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn submit_order(ctx: Context<SubmitOrder>, amount: [u8;32], price: [u8;32],user_pubkey: [u8; 32], order_type: u8, computation_offset: u64, order_id: u64, order_nonce: u128) -> Result<()> {
-        instructions::submit_order(ctx, amount, price, user_pubkey, order_type, computation_offset, order_id, order_nonce)?;
+    pub fn submit_order(
+        ctx: Context<SubmitOrder>,
+        amount: [u8; 32],
+        price: [u8; 32],
+        user_pubkey: [u8; 32],
+        order_type: u8,
+        computation_offset: u64,
+        order_id: u64,
+        order_nonce: u128,
+    ) -> Result<()> {
+        instructions::submit_order(
+            ctx,
+            amount,
+            price,
+            user_pubkey,
+            order_type,
+            computation_offset,
+            order_id,
+            order_nonce,
+        )?;
         Ok(())
     }
 
-    pub fn trigger_matching(
-        ctx: Context<TriggerMatching>,
-        computation_offset: u64,
-    ) -> Result<()> {
+    pub fn trigger_matching(ctx: Context<TriggerMatching>, computation_offset: u64) -> Result<()> {
         instructions::trigger_matching(ctx, computation_offset)?;
         Ok(())
     }
@@ -134,42 +150,30 @@ pub mod matching_engine {
         ctx: Context<MatchOrdersCallback>,
         output: ComputationOutputs<MatchOrdersOutput>,
     ) -> Result<()> {
-    // Use reference to avoid stack copies
-    let (match_result_encrypted, orderbook_encrypted) = match &output {
-        ComputationOutputs::Success(MatchOrdersOutput {
-            field_0: MatchOrdersOutputStruct0 {
-                field_0: match_result,    // Enc<Shared, MatchResult>
-                field_1: orderbook,       // Enc<Mxe, OrderBook>
-            },
-        }) => (match_result, orderbook),
-        _ => return Err(ErrorCode::AbortedComputation.into()),
-    };
+        process_match_orders_result(ctx, output)
+    }
 
-    let _match_nonce = match_result_encrypted.nonce;
-    let _match_ciphertexts = match_result_encrypted.ciphertexts;
-    
-    let orderbook_nonce = orderbook_encrypted.nonce;
-    let orderbook_ciphertexts = orderbook_encrypted.ciphertexts;
-    
-    // Update orderbook state
-    let orderbook_state = &mut ctx.accounts.orderbook_state;
+    #[inline(never)]
+    pub fn process_match_orders_result(
+        ctx: Context<MatchOrdersCallback>,
+        output: ComputationOutputs<MatchOrdersOutput>,
+    ) -> Result<()> {
+        match &output {
+            ComputationOutputs::Success(MatchOrdersOutput { field_0 }) => {
+                // Copy orderbook data directly
+                copy_orderbook_data!(&mut ctx.accounts.orderbook_state, &field_0.field_1);
+                
+                ctx.accounts.orderbook_state.total_matches =
+                    ctx.accounts.orderbook_state.total_matches.saturating_add(1);
+                
+                msg!("Matching completed. {} total matches",
+                     ctx.accounts.orderbook_state.total_matches);
 
-    orderbook_state.orderbook_nonce = orderbook_nonce;
-    orderbook_state.orderbook_data = orderbook_ciphertexts;
-    orderbook_state.total_matches = orderbook_state.total_matches.saturating_add(1);
-    
-    // Emit event with match results
-    // emit!(MatchResultEvent {
-    //     match_ciphertexts,
-    //     match_nonce,
-    //     orderbook_nonce,
-    //     timestamp: Clock::get()?.unix_timestamp,
-    // });
-    
-    msg!("Matching completed. {} total matches processed.", orderbook_state.total_matches);
-    
-    Ok(())
-
+                
+                Ok(())
+            }
+            _ => Err(ErrorCode::AbortedComputation.into()),
+        }
     }
 
     #[arcium_callback(encrypted_ix = "submit_order", network = "localnet")]
@@ -177,56 +181,67 @@ pub mod matching_engine {
         ctx: Context<SubmitOrderCallback>,
         output: ComputationOutputs<SubmitOrderOutput>,
     ) -> Result<()> {
-        let (orderbook_encrypted, success, buy_count, sell_count) = match &output {
-            ComputationOutputs::Success(SubmitOrderOutput {
-                field_0: SubmitOrderOutputStruct0 {
-                    field_0: orderbook,
-                    field_1: success,
-                    field_2: buy_count,
-                    field_3: sell_count,
-                },
-            }) => (orderbook, *success, *buy_count, *sell_count),  // Dereference primitives
+        process_submit_order_result(ctx, output)
+    }
+
+    #[inline(never)]
+    pub fn process_submit_order_result(
+        ctx: Context<SubmitOrderCallback>,
+        output: ComputationOutputs<SubmitOrderOutput>,
+    ) -> Result<()> {
+        let result = match &output {
+            ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => field_0,
             _ => return Err(ErrorCode::AbortedComputation.into()),
         };
-    
-        // Extract data
-        let orderbook_nonce = orderbook_encrypted.nonce;
-        let orderbook_ciphertexts = &orderbook_encrypted.ciphertexts;
-        
-        // Update orderbook state
-        let orderbook_state = &mut ctx.accounts.orderbook_state;
-        orderbook_state.orderbook_nonce = orderbook_nonce;
-        orderbook_state.orderbook_data = *orderbook_ciphertexts;  // Copy array
-        orderbook_state.total_orders_processed = orderbook_state.total_orders_processed.saturating_add(1);
-        
-        // Update order account status
+
+        let success = result.field_1;
+        let buy_count = result.field_2;
+        let sell_count = result.field_3;
+
+        // Copy orderbook data
+        copy_orderbook_data!(&mut ctx.accounts.orderbook_state, &result.field_0);
+
+        ctx.accounts.orderbook_state.total_orders_processed = ctx
+            .accounts
+            .orderbook_state
+            .total_orders_processed
+            .saturating_add(1);
+
         let order_account = &mut ctx.accounts.order_account;
+        order_account.status = if success { 1 } else { 2 };
+
         if success {
-            order_account.status = 1;  // Processing (added to orderbook)
-            msg!("Order {} added to orderbook. Buy count: {}, Sell count: {}", 
-                 order_account.order_id, buy_count, sell_count);
+            msg!(
+                "Order {} added. Buy: {}, Sell: {}",
+                order_account.order_id,
+                buy_count,
+                sell_count
+            );
         } else {
-            order_account.status = 2;  // Rejected (orderbook full)
-            msg!("Order {} rejected: orderbook full", order_account.order_id);
+            msg!("Order {} rejected", order_account.order_id);
         }
-        
-        // Emit event
+
         emit!(OrderProcessedEvent {
             order_id: order_account.order_id,
             success,
             buy_count,
             sell_count,
-            orderbook_nonce,
+            orderbook_nonce: ctx.accounts.orderbook_state.orderbook_nonce,
         });
-        
-        Ok(())    
+
+        Ok(())
     }
     pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
         instructions::withdraw_from_vault(ctx, amount)?;
         Ok(())
     }
 
-    pub fn execute_settlement(ctx: Context<ExecuteSettlement>, match_id: u64, quantity: u64, execution_price: u64) -> Result<()> {
+    pub fn execute_settlement(
+        ctx: Context<ExecuteSettlement>,
+        match_id: u64,
+        quantity: u64,
+        execution_price: u64,
+    ) -> Result<()> {
         instructions::execute_settlement(ctx, match_id, quantity, execution_price)?;
         Ok(())
     }
@@ -305,7 +320,7 @@ pub struct InitEncryptedOrderbook<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
-    
+
     #[account(mut)]
     pub orderbook_state: Box<Account<'info, OrderBookState>>,
 }

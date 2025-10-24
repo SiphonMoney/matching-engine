@@ -638,12 +638,12 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("tx", tx);
 
       // 6. Wait for MPC finalization
-      // await awaitComputationFinalization(
-      //   provider,
-      //   submitOrderComputationOffset,
-      //   program.programId,
-      //   "confirmed"
-      // );
+      await awaitComputationFinalization(
+        provider,
+        submitOrderComputationOffset,
+        program.programId,
+        "confirmed"
+      );
 
       console.log("=============== Order submitted successfully ===============");
       console.log("waiting for event");
@@ -653,6 +653,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       // 8. CRITICAL: Verify nonce incremented
       const after = await getOrderBookState(program);
+      console.log("after", after);
       expect(after.orderBookNonce.toString()).to.equal(
         initialNonce.add(new BN(1)).toString()
       );
@@ -660,12 +661,12 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("nonce incremented");
 
       // 9. Verify OrderAccount created
-      // const orderAccount = await getOrderAccount(
-      //   program,
-      //   new BN(event.orderId),
-      //   user1.publicKey
-      // );
-      // expect(orderAccount.status).to.equal(1); // Processing
+      const orderAccount = await getOrderAccount(
+        program,
+        new BN(event.orderId),
+        user1.publicKey
+      );
+      expect(orderAccount.status).to.equal(1); // Processing
     });
 
     it("Test 1.3.3: Should handle user pubkey chunking correctly", async () => {
