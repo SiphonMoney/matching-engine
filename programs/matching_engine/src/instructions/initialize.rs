@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 const ORDER_BOOK_STATE_SEED: &[u8] = b"order_book_state";
 use crate::{states::OrderBookState};
 
-
 pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint: Pubkey, quote_mint: Pubkey) -> Result<()> {
     let order_book_state = &mut ctx.accounts.orderbook_state;
     order_book_state.authority = ctx.accounts.authority.key();
@@ -16,7 +15,6 @@ pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint:
     order_book_state.quote_mint = quote_mint;
     Ok(())
 }
-
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {

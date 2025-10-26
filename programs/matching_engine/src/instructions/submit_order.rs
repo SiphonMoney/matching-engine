@@ -30,7 +30,7 @@ pub fn submit_order(
     ctx: Context<SubmitOrder>,
     amount: [u8; 32],
     price: [u8; 32],
-    user_pubkey: [u8; 32],
+    user_pubkey: [u8; 32], // x25519 public key
     order_type: u8, // 0 = buy, 1 = sell
     computation_offset: u64,
     order_id: u64,
@@ -88,7 +88,7 @@ pub fn submit_order(
     // Get user pubkey as bytes
     let user_pubkey_bytes = ctx.accounts.user.key().to_bytes();
     msg!("user_pubkey_bytes: {:?}", user_pubkey_bytes);
-    let user_chunks = pubkey_to_u64_chunks(&user_pubkey_bytes);
+    // let user_chunks = pubkey_to_u64_chunks(&user_pubkey_bytes);
 
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
