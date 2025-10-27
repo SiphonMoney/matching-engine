@@ -9,12 +9,30 @@ mod circuits {
 
     #[derive(Copy, Clone)]
     pub struct Order {
-        pub order_id: u64, // 8
-        pub amount: u64, // 8
-        pub price: u64, // 8
+        pub order_id: u64,  // 8
+        pub amount: u64,    // 8
+        pub price: u64,     // 8
         pub order_type: u8, // 1
         pub timestamp: u64, // 8
-    } 
+    }
+
+    #[derive(Copy, Clone)]
+    pub struct OrderStatus {
+        pub order_type: u8,
+        pub amount: u64,
+        pub price: u64,
+        pub status: u8,
+        pub locked_amount: u64,
+        pub filled_amount: u64,
+        pub execution_price: u64,
+    }
+    #[derive(Copy, Clone)]
+    pub struct Balances {
+        pub base_total: u64,
+        pub base_available: u64,
+        pub quote_total: u64,
+        pub quote_available: u64,
+    }
 
     impl Order {
         pub fn empty() -> Self {
@@ -277,44 +295,124 @@ mod circuits {
         let order_book = OrderBook::new();
         mxe.from_arcis(order_book)
     }
-    pub struct SensitiveOrderData {
+
+    #[instruction]
+    pub fn init_user_ledger(mxe: Mxe) -> Enc<Mxe, Balances> {
+        let balances = Balances {
+            base_total: 0,
+            base_available: 0,
+            quote_total: 0,
+            quote_available: 0,
+        };
+        mxe.from_arcis(balances)
+    }
+    pub struct UserSensitiveData {
         pub amount: u64,
         pub price: u64,
     }
 
+    // TODO : user_ledger init in mxe
+
     #[instruction]
     pub fn submit_order(
-        sensitive_ctxt: Enc<Shared, SensitiveOrderData>,
-        orderbook_ctxt: Enc<Mxe, &OrderBook>,
+        user_sensitive: Enc<Shared, UserSensitiveData>,       // User's x25519
+        user_ledger: Enc<Mxe, &Balances>,                     // MXE
+        orderbook_ctx: Enc<Mxe, &OrderBook>,                  // MXE
         order_id: u64,
         order_type: u8,
         timestamp: u64,
-    ) -> (Enc<Mxe, OrderBook>, bool, u8, u8) {
-        let sensitive = sensitive_ctxt.to_arcis();
-        let mut order_book = *(orderbook_ctxt.to_arcis());
-
-        let order = Order {
-            order_id,
-            amount: sensitive.amount,
-            price: sensitive.price,
-            order_type,
-            timestamp,
-        };
-
-        let success = if order.is_buy() {
-            order_book.insert_buy(order)
+    ) -> (
+        Enc<Mxe, OrderBook>,        // Updated orderbook
+        Enc<Mxe, Balances>,     // Updated ledger
+        Enc<Shared, OrderStatus>,   // For user to view
+        bool,                       // Success
+    ) {
+        let sensitive = user_sensitive.to_arcis();
+        let mut ledger = *(user_ledger.to_arcis());
+        let mut orderbook = *(orderbook_ctx.to_arcis());
+        
+        // Calculate required amount
+        let required = if order_type == 0 {
+            // Buy order needs quote token
+            sensitive.amount * sensitive.price
         } else {
-            order_book.insert_sell(order)
+            // Sell order needs base token
+            sensitive.amount
+        };
+        
+        // Check available balance
+        let available = if order_type == 0 {
+            ledger.quote_available
+        } else {
+            ledger.base_available
         };
 
-        let buy_count = order_book.buy_count;
-        let sell_count = order_book.sell_count;
+        let mut possible = true;
+        
+        if available < required {
+            // Insufficient balance
+            possible = false;
+        }
+        
+        // Lock funds
+        if order_type == 0 {
+            ledger.quote_available -= required;
+            // Note: We don't track locked separately in this simplified version
+            // In production, you'd have base_locked and quote_locked fields
+        } else {
+            ledger.base_available -= required;
+        }
+        
+        // Add to orderbook
 
+        let order = if possible {
+            Order {
+                order_id,
+                amount: sensitive.amount,
+                price: sensitive.price,
+                order_type,
+                timestamp,
+            }
+        } else {
+            Order::empty()
+        };
+        
+        let success = if possible {
+            if order_type == 0 {
+                orderbook.insert_buy(order)
+            } else {
+                orderbook.insert_sell(order)
+            }
+        } else {
+            false
+        };
+        
+        let status = if possible {OrderStatus {
+            order_type,
+            amount: sensitive.amount,
+                price: sensitive.price,
+                status: if success { 1 } else { 2 },  // 1=processing, 2=rejected
+                locked_amount: if success { required } else { 0 },
+                filled_amount: 0,
+                execution_price: 0,
+            }
+        } else {
+            OrderStatus{
+                order_type,
+                amount: sensitive.amount,
+                price: sensitive.price,
+                status: 5,  // Status = 5: Insufficient balance
+                locked_amount: 0,
+                filled_amount: 0,
+                execution_price: 0,
+            }
+        };
+        
         (
-            orderbook_ctxt.owner.from_arcis(order_book), // Re-encrypt for MXE
+            orderbook_ctx.owner.from_arcis(orderbook),
+            user_ledger.owner.from_arcis(ledger),
+            user_sensitive.owner.from_arcis(status),
             success.reveal(),
-            buy_count.reveal(),
-            sell_count.reveal(),
         )
     }
 
@@ -379,5 +477,26 @@ mod circuits {
             clanker_authority.from_arcis(result),
             order_book_ctxt.owner.from_arcis(order_book),
         )
+    }
+
+    #[instruction]
+    pub fn update_ledger_deposit(
+        ledger_ctx: Enc<Mxe, &Balances>, // Current encrypted balances
+        amount: u64,
+        is_base: u8,
+    ) -> Enc<Mxe, Balances> {
+        let mut balances = *(ledger_ctx.to_arcis());
+
+        if is_base == 0 {
+            // Deposit base token
+            balances.base_total += amount;
+            balances.base_available += amount;
+        } else {
+            // Deposit quote token
+            balances.quote_total += amount;
+            balances.quote_available += amount;
+        }
+
+        ledger_ctx.owner.from_arcis(balances)
     }
 }

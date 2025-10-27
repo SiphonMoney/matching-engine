@@ -1,4 +1,3 @@
-
 use crate::errors::ErrorCode;
 use crate::states::*;
 use crate::SignerAccount;
@@ -11,20 +10,11 @@ use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
 
 const VAULT_SEED: &[u8] = b"vault";
-const VAULT_STATE_SEED: &[u8] = b"vault_state";
 const ORDERBOOK_SEED: &[u8] = b"order_book_state";
 
 use crate::ID;
 use crate::ID_CONST;
 
-fn pubkey_to_u64_chunks(pubkey_bytes: &[u8; 32]) -> [u64; 4] {
-    [
-        u64::from_le_bytes(pubkey_bytes[0..8].try_into().unwrap()),
-        u64::from_le_bytes(pubkey_bytes[8..16].try_into().unwrap()),
-        u64::from_le_bytes(pubkey_bytes[16..24].try_into().unwrap()),
-        u64::from_le_bytes(pubkey_bytes[24..32].try_into().unwrap()),
-    ]
-}
 
 pub fn submit_order(
     ctx: Context<SubmitOrder>,
@@ -36,70 +26,26 @@ pub fn submit_order(
     order_id: u64,
     order_nonce: u128,
 ) -> Result<()> {
-    // msg!("Program-side signer key received: {}", ctx.accounts.user.key());
-    // let locked_amount = if order_type == 0 {
-    //     u64::from_le_bytes(amount).checked_mul(u64::from_le_bytes(price)).ok_or(ErrorCode::Overflow)?
-    // } else {
-    //     u64::from_le_bytes(amount)
-    // };
-
-    // // Check vault has sufficient funds
-    // let vault = &ctx.accounts.vault;
-
-    // let locked_total = ctx.accounts.vault_state.locked_amount;
-
-    // let available = vault
-    //     .amount
-    //     .checked_sub(locked_total)
-    //     .ok_or(ErrorCode::InsufficientBalance)?;
-
-    // msg!("available: {}", available);
-    // msg!("locked_amount: {}", locked_amount);
-
-    // require!(available >= locked_amount, ErrorCode::InsufficientBalance);
-
-
-    // msg!("=== submitOrder Accounts ===");
-    // msg!("User: {}", ctx.accounts.mxe_account.key());
-    // msg!("Vault PDA: {}", ctx.accounts.base_mint.key());
-    // msg!("Vault State PDA: {}", ctx.accounts.vault_state.key());
-    // msg!("Order Account PDA: {}", ctx.accounts.order_account.key());
-    // msg!("Orderbook PDA: {}", ctx.accounts.orderbook_state.key());
-
-
-    // Populate order account
-    let order_account = &mut ctx.accounts.order_account;
-    order_account.order_id = order_id;
-    order_account.user = ctx.accounts.user.key();
-    order_account.order_type = order_type;
-    order_account.status = 0; // Pending
-    order_account.filled_amount = 0;
-    order_account.timestamp = Clock::get()?.unix_timestamp;
-    order_account.bump = ctx.bumps.order_account;
-
-    // Update vault state
-    ctx.accounts.vault_state.num_active_orders = ctx
-        .accounts
-        .vault_state
-        .num_active_orders
-        .checked_add(1)
-        .ok_or(ErrorCode::Overflow)?;
-
-    // Get user pubkey as bytes
-    let user_pubkey_bytes = ctx.accounts.user.key().to_bytes();
-    msg!("user_pubkey_bytes: {:?}", user_pubkey_bytes);
-    // let user_chunks = pubkey_to_u64_chunks(&user_pubkey_bytes);
-
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     
-    let args = vec![        // Enc<Shared, SensitiveOrderData> - encrypted amount & price
+    let args = vec![        
+
+        // Enc<Shared, SensitiveOrderData> - encrypted amount & price
         Argument::ArcisPubkey(user_pubkey),
         Argument::PlaintextU128(order_nonce),
         Argument::EncryptedU64(amount), // Client encrypts this
         Argument::EncryptedU64(price),  // Client encrypts this
-        // Enc<Mxe, OrderBook>
 
+        // Enc<Mxe, Balances>
+        Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
+        Argument::Account(
+            ctx.accounts.user_ledger.key(),
+            8 + 32,          // Offset: discriminator + owner
+            4 * 32,          // Size: 4 chunks
+        ),
+
+        // Enc<Mxe, OrderBook>
         Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
         Argument::Account(
             ctx.accounts.orderbook_state.key(),
@@ -108,11 +54,6 @@ pub fn submit_order(
         ),
 
         Argument::PlaintextU64(order_id),
-        // // Pass [u8; 32] as 4x u64 chunks
-        // Argument::PlaintextU64(user_chunks[0]),
-        // Argument::PlaintextU64(user_chunks[1]),
-        // Argument::PlaintextU64(user_chunks[2]),
-        // Argument::PlaintextU64(user_chunks[3]),
         Argument::PlaintextU8(order_type),
         Argument::PlaintextU64(Clock::get()?.unix_timestamp as u64),
     ];
@@ -201,17 +142,17 @@ pub struct SubmitOrder<'info> {
         seeds = [
             b"order",
             order_id.to_le_bytes().as_ref(),
-            user.key().as_ref(),
         ],
         bump,
     )]
     pub order_account: Box<Account<'info, OrderAccount>>,
+
     #[account(
         mut,
-        seeds = [VAULT_STATE_SEED, base_mint.key().as_ref(), user.key().as_ref()],
-        bump = vault_state.bump,
+        seeds = [b"user_ledger", user.key().as_ref()],
+        bump = user_ledger.bump,
     )]
-    pub vault_state: Box<Account<'info, VaultState>>,
+    pub user_ledger: Account<'info, UserPrivateLedger>,
 
     #[account(
         mut,
@@ -219,13 +160,4 @@ pub struct SubmitOrder<'info> {
         bump = orderbook_state.bump,
     )]
     pub orderbook_state: Box<Account<'info, OrderBookState>>,
-}
-
-#[event]
-pub struct OrderSubmittedEvent {
-    pub user: Pubkey,
-    pub order_id: u64,
-    pub computation_offset: u64,
-    pub locked_amount: u64,
-    pub vault: Pubkey,
 }

@@ -8,9 +8,6 @@ import {
 } from "@solana/web3.js";
 import {
   createMint,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-  getMint,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { randomBytes } from "crypto";
@@ -50,11 +47,14 @@ import {
   createATAAndMintTokens,
   deriveSignerAccountPDA,
   deriveArciumFeePoolAccountAddress,
+  deriveUserLedgerPDA,
 } from "./helpers/accounts";
 import {
   initSubmitOrderCompDef,
   initMatchOrdersCompDef,
   initInitOrderBookCompDef,
+  initInitUserLedgerCompDef,
+  updateLedgerDepositCompDef,
   readKpJson,
 } from "./helpers/computation";
 
@@ -65,6 +65,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const arciumEnv = getArciumEnv();
 
+
+  // TODO ; change the seeds for deriving the orderaccount pda
   // Test accounts
   let authority: Keypair;
   let backendKeypair: Keypair;
@@ -315,6 +317,52 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       }
       expect(matchOrdersCompDefSig).to.exist;
 
+      console.log("Initializing init_user_ledger computation definition...");
+      let initUserLedgerCompDefSig;
+      try {
+        initUserLedgerCompDefSig = await initInitUserLedgerCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+        console.log("Init user ledger comp def sig:", initUserLedgerCompDefSig);
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Init user ledger comp def already exists, skipping...");
+          initUserLedgerCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(initUserLedgerCompDefSig).to.exist;
+
+      console.log("Initializing update_ledger_deposit computation definition...");
+      let updateLedgerDepositCompDefSig;
+      try {
+        updateLedgerDepositCompDefSig = await updateLedgerDepositCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+        console.log("Update ledger deposit comp def sig:", updateLedgerDepositCompDefSig);
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Update ledger deposit comp def already exists, skipping...");
+          updateLedgerDepositCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(updateLedgerDepositCompDefSig).to.exist;
+
+      // await setTimeout(async () => {
+      //   console.log("wait for compdef to maybe get up for real for a minute")
+      // }, 60*1000);
+
+      console.log("=================================================================================")
+
       // Verify comp defs are accessible
       const submitOrderCompDefPDA = getCompDefAccAddress(
         program.programId,
@@ -479,6 +527,44 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       }
       expect(initOrderBookCompDefSig).to.exist;
 
+      let initUserLedgerCompDefSig;
+      try {
+        initUserLedgerCompDefSig = await initInitUserLedgerCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+        console.log("Init user ledger comp def sig:", initUserLedgerCompDefSig);
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Init user ledger comp def already exists, skipping...");
+          initUserLedgerCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(initUserLedgerCompDefSig).to.exist;
+
+      let updateLedgerDepositCompDefSig;
+      try {
+        updateLedgerDepositCompDefSig = await updateLedgerDepositCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
+        console.log("Update ledger deposit comp def sig:", updateLedgerDepositCompDefSig);
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log("Update ledger deposit comp def already exists, skipping...");
+          updateLedgerDepositCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(updateLedgerDepositCompDefSig).to.exist;
+
       // 1. Setup encryption
       const { publicKey, cipher } = await setupUserEncryption(
         provider,
@@ -529,6 +615,98 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       console.log("Tokens deposited to vault");
 
+      const [userLedgerPDA] = deriveUserLedgerPDA(
+        user1.publicKey,
+        program.programId
+      );
+
+      const InitUserLedgerComputationOffset = new anchor.BN(randomBytes(8), "hex");;
+      const UpdateLedgerDepositComputationOffset = new anchor.BN(randomBytes(8), "hex");;
+
+      console.log("meow meow")
+
+      // initlialize a user ledger and then deposit to the ledger
+      await program.methods
+        .initializeUserLedger(InitUserLedgerComputationOffset)
+        .accountsPartial({
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            InitUserLedgerComputationOffset
+          ),
+          user: user1.publicKey,
+          signPdaAccount: deriveSignerAccountPDA(program.programId),
+          poolAccount: deriveArciumFeePoolAccountAddress(),
+          clusterAccount: arciumEnv.arciumClusterPubkey,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(
+              getCompDefAccOffset("init_user_ledger")
+            ).readUInt32LE()
+          ),
+          clockAccount: getClockAccAddress(),
+          systemProgram: SystemProgram.programId, 
+          arciumProgram: getArciumProgramId(),
+          userLedger: userLedgerPDA,
+        })
+        .signers([user1])
+        .rpc({ commitment: "confirmed" });
+
+        console.log("meow meow 2")
+
+      await awaitComputationFinalization(
+        provider,
+        InitUserLedgerComputationOffset,
+        program.programId,
+        "confirmed"
+      );
+
+      console.log("User ledger initialized");
+
+
+
+      await program.methods
+        .depositToLedger(new BN(100), true, InitUserLedgerComputationOffset)
+        .accountsPartial({
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            UpdateLedgerDepositComputationOffset
+          ),
+          user: user1.publicKey,
+          signPdaAccount: deriveSignerAccountPDA(program.programId),
+          poolAccount: deriveArciumFeePoolAccountAddress(),
+          clusterAccount: arciumEnv.arciumClusterPubkey,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(
+              getCompDefAccOffset("update_ledger_deposit")
+            ).readUInt32LE()
+          ),
+          clockAccount: getClockAccAddress(),
+          systemProgram: SystemProgram.programId, 
+          arciumProgram: getArciumProgramId(),  
+          userTokenAccount: user1token1ATA, 
+          vault: vaultPDA,
+          userLedger: userLedgerPDA,
+          orderbookState: OrderbookPDA,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .signers([user1])
+        .rpc({ commitment: "confirmed" });
+      
+      await awaitComputationFinalization(
+        provider,
+        UpdateLedgerDepositComputationOffset,
+        program.programId,
+        "confirmed"
+      );
+
+
       // 2. Prepare order (using smaller values to reduce stack usage)
       const amount =10;
       const price = 5;
@@ -545,15 +723,17 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       const [orderAccountPDA] = deriveOrderAccountPDA(
         new anchor.BN(orderId),
-        user1.publicKey,
         program.programId
       );
+
+
 
       console.log("=== submitOrder Accounts ===");
       console.log("User:", user1.publicKey.toBase58());
       console.log("Vault PDA:", vaultPDA.toBase58());
       console.log("Vault State PDA:", vaultStatePDA.toBase58());
       console.log("Order Account PDA:", orderAccountPDA.toBase58());
+      console.log("User Ledger PDA:", userLedgerPDA.toBase58());
       console.log("Orderbook PDA:", OrderbookPDA.toBase58());
       console.log("program id", program.programId.toBase58());
 
@@ -628,8 +808,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           baseMint: baseMint,
           vault: vaultPDA,
           orderAccount: orderAccountPDA,
-          vaultState: vaultStatePDA,
           orderbookState: OrderbookPDA,
+          userLedger: userLedgerPDA,
         })
         .signers([user1])
         .rpc({ commitment: "confirmed" });

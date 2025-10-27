@@ -210,3 +210,123 @@ export async function initInitOrderBookCompDef(
     return sig;
   }
 }
+
+/**
+ * Initialize init_user_ledger computation definition
+ */
+export async function initInitUserLedgerCompDef(
+  program: Program<MatchingEngine>,
+  owner: Keypair,
+  uploadRawCircuit: boolean = false,
+  offchainSource: boolean = false
+): Promise<string> {
+  const baseSeedCompDefAcc = getArciumAccountBaseSeed(
+    "ComputationDefinitionAccount"
+  );
+  const offset = getCompDefAccOffset("init_user_ledger");
+
+  const compDefPDA = PublicKey.findProgramAddressSync(
+    [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
+    getArciumProgAddress()
+  )[0];
+
+  console.log("Init user ledger comp def PDA:", compDefPDA.toBase58());
+
+  const sig = await program.methods
+    .initUserLedgerCompDef()
+    .accounts({
+      compDefAccount: compDefPDA,
+      payer: owner.publicKey,
+      mxeAccount: getMXEAccAddress(program.programId),
+    })
+    .signers([owner])
+    .rpc({
+      commitment: "confirmed",
+    });
+
+  console.log("Init init_user_ledger computation definition tx:", sig);
+
+  const provider = program.provider as anchor.AnchorProvider;
+
+  if (uploadRawCircuit) {
+    const rawCircuit = fs.readFileSync("build/init_user_ledger.arcis");
+    await uploadCircuit(
+      provider,
+      "init_user_ledger",
+      program.programId,
+      rawCircuit,
+      true
+    );
+  } else if (!offchainSource) {
+    const finalizeTx = await buildFinalizeCompDefTx(
+      provider,
+      Buffer.from(offset).readUInt32LE(),
+      program.programId
+    );
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    finalizeTx.recentBlockhash = latestBlockhash.blockhash;
+    finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+    return sig;
+  }
+}
+
+/**
+ * Initialize update_ledger_deposit computation definition
+ */
+export async function updateLedgerDepositCompDef(
+  program: Program<MatchingEngine>,
+  owner: Keypair,
+  uploadRawCircuit: boolean = false,
+  offchainSource: boolean = false
+): Promise<string> {
+  const baseSeedCompDefAcc = getArciumAccountBaseSeed(
+    "ComputationDefinitionAccount"
+  );
+  const offset = getCompDefAccOffset("update_ledger_deposit");
+
+  const compDefPDA = PublicKey.findProgramAddressSync(
+    [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
+    getArciumProgAddress()
+  )[0];
+
+  console.log("Update ledger deposit comp def PDA:", compDefPDA.toBase58());
+
+  const sig = await program.methods
+    .initUpdateLedgerDepositCompDef()
+    .accounts({
+      compDefAccount: compDefPDA,
+      payer: owner.publicKey,
+      mxeAccount: getMXEAccAddress(program.programId),
+    })
+    .signers([owner])
+    .rpc({
+      commitment: "confirmed",
+    });
+
+  console.log("Init update_ledger_deposit computation definition tx:", sig);
+
+  const provider = program.provider as anchor.AnchorProvider;
+
+  if (uploadRawCircuit) {
+    const rawCircuit = fs.readFileSync("build/update_ledger_deposit.arcis");
+    await uploadCircuit(
+      provider,
+      "update_ledger_deposit",
+      program.programId,
+      rawCircuit,
+      true
+    );
+  } else if (!offchainSource) {
+    const finalizeTx = await buildFinalizeCompDefTx(
+      provider,
+      Buffer.from(offset).readUInt32LE(),
+      program.programId
+    );
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    finalizeTx.recentBlockhash = latestBlockhash.blockhash;
+    finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+    return sig;
+  }
+}

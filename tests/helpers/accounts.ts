@@ -8,6 +8,7 @@ const ORDERBOOK_SEED = Buffer.from("order_book_state");
 const VAULT_SEED = Buffer.from("vault");
 const VAULT_STATE_SEED = Buffer.from("vault_state");
 const ORDER_SEED = Buffer.from("order");
+const USER_LEDGER_SEED = Buffer.from("user_ledger");
 
 /**
  * Derive OrderBookState PDA
@@ -23,17 +24,25 @@ export function deriveOrderbookPDA(
  */
 export function deriveOrderAccountPDA(
   orderId: anchor.BN,
-  userPubkey: PublicKey,
   programId: PublicKey
 ): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [
       ORDER_SEED,
       orderId.toArrayLike(Buffer, "le", 8),
-      userPubkey.toBuffer(),
     ],
     programId
   );
+}
+
+/**
+ * Derive UserLedger PDA
+ */
+export function deriveUserLedgerPDA(
+  userPubkey: PublicKey,
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([USER_LEDGER_SEED, userPubkey.toBuffer()], programId);
 }
 
 /**
@@ -82,7 +91,7 @@ export async function getOrderAccount(
   orderId: anchor.BN,
   userPubkey: PublicKey
 ): Promise<any> {
-  const [pda] = deriveOrderAccountPDA(orderId, userPubkey, program.programId);
+  const [pda] = deriveOrderAccountPDA(orderId, program.programId);
   return await program.account.orderAccount.fetch(pda);
 }
 
