@@ -2,19 +2,19 @@ use crate::errors::ErrorCode;
 use crate::states::*;
 use crate::SignerAccount;
 use anchor_lang::prelude::*;
+use anchor_spl::token::Mint;
 use anchor_spl::token::{self, Transfer};
 use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
 use crate::UpdateLedgerDepositCallback;
-use anchor_spl::token::TokenAccount;
-use anchor_spl::token::Token;
 use crate::COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT;
+use anchor_spl::associated_token::AssociatedToken;
+const VAULT_SEED: &[u8] = b"vault";
 
- 
+
+use anchor_spl::token::{ Token, TokenAccount};
 use crate::ID;
 use crate::ID_CONST;
-
-const VAULT_SEED: &[u8] = b"vault";
 
 pub fn deposit_to_ledger(
     ctx: Context<DepositToLedger>,
@@ -119,12 +119,25 @@ pub struct DepositToLedger<'info> {
     
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
-    
-    #[account(mut)]
-    pub user_token_account: Account<'info, TokenAccount>,
-    
+
+    /// CHECK: PDA authority for vault
+    #[account(
+        seeds = [b"vault_authority"],
+        bump,
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
+
+    pub mint: Account<'info, Mint>,
+
     #[account(mut)]
     pub vault: Account<'info, TokenAccount>,
+    
+    #[account(
+        mut,
+        associated_token::authority = user,
+        associated_token::mint = mint,
+    )]
+    pub user_token_account: Account<'info, TokenAccount>,
     
     #[account(
         mut,
@@ -133,7 +146,7 @@ pub struct DepositToLedger<'info> {
     )]
     pub user_ledger: Account<'info, UserPrivateLedger>,
     
-    pub orderbook_state: Account<'info, OrderBookState>,
     
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }

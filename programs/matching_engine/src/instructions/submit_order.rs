@@ -130,7 +130,7 @@ pub struct SubmitOrder<'info> {
 
     #[account(
         mut,
-        seeds = [VAULT_SEED, base_mint.key().as_ref(), user.key().as_ref()],
+        seeds = [VAULT_SEED, base_mint.key().as_ref()],
         bump,
     )]
     pub vault: Account<'info, TokenAccount>,

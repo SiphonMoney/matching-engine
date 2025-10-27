@@ -7,6 +7,7 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
@@ -200,6 +201,17 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         accountAlreadyExists
       );
 
+      const [baseVaultPDA] = deriveVaultPDA(
+        baseMint,
+        program.programId
+      );
+      const [quoteVaultPDA] = deriveVaultPDA(
+        quoteMint,
+        program.programId
+      );
+
+      const [vaultAuthorityPDA] = deriveVaultAuthorityPDA(program.programId);
+
       if (!accountAlreadyExists) {
         // Initialize program
         const tx = await program.methods
@@ -208,6 +220,12 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             authority: authority.publicKey,
             orderBookState: OrderbookPDA,
             systemProgram: SystemProgram.programId,
+            baseVault: baseVaultPDA,
+            quoteVault: quoteVaultPDA,
+            baseMint: baseMint,
+            quoteMint: quoteMint,
+            vaultAuthority: vaultAuthorityPDA,
+            tokenProgram: TOKEN_PROGRAM_ID,
           })
           .signers([authority])
           .rpc({ commitment: "confirmed" });
@@ -571,30 +589,38 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         program.programId
       );
 
-      const [vaultPDA] = deriveVaultPDA(
+      const [baseVaultPDA] = deriveVaultPDA(
         baseMint,
-        user1.publicKey,
         program.programId
       );
+      const [quoteVaultPDA] = deriveVaultPDA(
+        quoteMint,
+        program.programId
+      );
+
+
       const [vaultStatePDA] = deriveVaultStatePDA(
         baseMint,
         user1.publicKey,
         program.programId
       );
       const [vaultAuthorityPDA] = deriveVaultAuthorityPDA(program.programId);
+
+
+      console.log("before initialize vault--------------------");
       // first initialize the vault
-      await program.methods
-        .initializeVault()
-        .accountsPartial({
-          user: user1.publicKey,
-          mint: baseMint,
-          vault: vaultPDA,
-          vaultState: vaultStatePDA,
-          vaultAuthority: vaultAuthorityPDA,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user1])
-        .rpc({ commitment: "confirmed" });
+      // await program.methods
+      //   .initializeVault()
+      //   .accountsPartial({
+      //     user: user1.publicKey,
+      //     mint: baseMint,
+      //     vault: baseVaultPDA,
+      //     vaultState: vaultStatePDA,
+      //     vaultAuthority: vaultAuthorityPDA,
+      //     systemProgram: SystemProgram.programId,
+      //   })
+      //   .signers([user1])
+      //   .rpc({ commitment: "confirmed" });
 
       console.log("Vault initialized");
 
@@ -608,7 +634,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         .accountsPartial({
           user: user1.publicKey,
           userTokenAccount: user1token1ATA,
-          vault: vaultPDA,
+          vault: baseVaultPDA,
         })
         .signers([user1])
         .rpc({ commitment: "confirmed" });
@@ -622,8 +648,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       const InitUserLedgerComputationOffset = new anchor.BN(randomBytes(8), "hex");;
       const UpdateLedgerDepositComputationOffset = new anchor.BN(randomBytes(8), "hex");;
-
-      console.log("meow meow")
 
       // initlialize a user ledger and then deposit to the ledger
       await program.methods
@@ -654,7 +678,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         .signers([user1])
         .rpc({ commitment: "confirmed" });
 
-        console.log("meow meow 2")
 
       await awaitComputationFinalization(
         provider,
@@ -665,11 +688,12 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       console.log("User ledger initialized");
 
+      console.log("meow meow 2")
 
 
       await program.methods
-        .depositToLedger(new BN(100), true, InitUserLedgerComputationOffset)
-        .accountsPartial({
+        .depositToLedger(new BN(100), true, UpdateLedgerDepositComputationOffset )
+        .accounts({
           computationAccount: getComputationAccAddress(
             program.programId,
             UpdateLedgerDepositComputationOffset
@@ -689,12 +713,14 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           ),
           clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId, 
-          arciumProgram: getArciumProgramId(),  
-          userTokenAccount: user1token1ATA, 
-          vault: vaultPDA,
+          arciumProgram: getArciumProgramId(),
           userLedger: userLedgerPDA,
-          orderbookState: OrderbookPDA,
+          mint: baseMint,
+          vault: baseVaultPDA,
+          userTokenAccount: user1token1ATA, 
           tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,  
+          vaultAuthority: vaultAuthorityPDA,
         })
         .signers([user1])
         .rpc({ commitment: "confirmed" });
@@ -708,7 +734,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
 
       // 2. Prepare order (using smaller values to reduce stack usage)
-      const amount =10;
+      const amount = 10;
       const price = 5;
       const submitOrderComputationOffset = new anchor.BN(randomBytes(8), "hex");;
 
@@ -730,7 +756,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       console.log("=== submitOrder Accounts ===");
       console.log("User:", user1.publicKey.toBase58());
-      console.log("Vault PDA:", vaultPDA.toBase58());
+      console.log("Vault PDA:", baseVaultPDA.toBase58());
       console.log("Vault State PDA:", vaultStatePDA.toBase58());
       console.log("Order Account PDA:", orderAccountPDA.toBase58());
       console.log("User Ledger PDA:", userLedgerPDA.toBase58());
@@ -806,7 +832,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           systemProgram: SystemProgram.programId, 
           arciumProgram: getArciumProgramId(),        
           baseMint: baseMint,
-          vault: vaultPDA,
+          vault: baseVaultPDA,
           orderAccount: orderAccountPDA,
           orderbookState: OrderbookPDA,
           userLedger: userLedgerPDA,
@@ -953,21 +979,21 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     it("Test 1.6.1: Should derive vault PDAs correctly", async () => {
       console.log("\n--- Test 1.6.1: Derive Vault PDAs ---");
 
-      const [baseVaultPDA] = deriveVaultStatePDA(
-        baseMint,
-        user1.publicKey,
-        program.programId
-      );
+      // const [baseVaultPDA] = deriveVaultStatePDA(
+      //   baseMint,
+      //   user1.publicKey,
+      //   program.programId
+      // );
 
-      const [quoteVaultPDA] = deriveVaultStatePDA(
-        quoteMint,
-        user1.publicKey,
-        program.programId
-      );
+      // const [quoteVaultPDA] = deriveVaultStatePDA(
+      //   quoteMint,
+      //   user1.publicKey,
+      //   program.programId
+      // );
 
-      console.log("User 1 vaults:");
-      console.log("  - Base vault PDA:", baseVaultPDA.toBase58());
-      console.log("  - Quote vault PDA:", quoteVaultPDA.toBase58());
+      // console.log("User 1 vaults:");
+      // console.log("  - Base vault PDA:", baseVaultPDA.toBase58());
+      // console.log("  - Quote vault PDA:", quoteVaultPDA.toBase58());
 
       console.log("✓ Vault PDA derivation works correctly");
     });

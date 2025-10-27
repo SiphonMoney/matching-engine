@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::associated_token::AssociatedToken;
 
 const VAULT_SEED: &[u8] = b"vault";
 
@@ -44,9 +45,10 @@ pub struct DepositToVault<'info> {
     pub user_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [VAULT_SEED, vault.mint.as_ref(), user.key().as_ref()],
+        seeds = [VAULT_SEED, vault.mint.as_ref()],
         bump,
     )]
     pub vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }

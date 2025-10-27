@@ -50,11 +50,10 @@ export function deriveUserLedgerPDA(
  */
 export function deriveVaultPDA(
   mint: PublicKey,
-  userPubkey: PublicKey,
   programId: PublicKey
 ): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [VAULT_SEED, mint.toBuffer(), userPubkey.toBuffer()],
+    [VAULT_SEED, mint.toBuffer()],
     programId
   );
 }

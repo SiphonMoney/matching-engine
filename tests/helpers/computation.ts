@@ -207,8 +207,13 @@ export async function initInitOrderBookCompDef(
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     finalizeTx.recentBlockhash = latestBlockhash.blockhash;
     finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
-    return sig;
+
+    finalizeTx.sign(owner);
+
+    await provider.sendAndConfirm(finalizeTx);
   }
+
+  return sig;
 }
 
 /**
@@ -267,8 +272,13 @@ export async function initInitUserLedgerCompDef(
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     finalizeTx.recentBlockhash = latestBlockhash.blockhash;
     finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
-    return sig;
+
+    finalizeTx.sign(owner);
+
+    await provider.sendAndConfirm(finalizeTx);
   }
+
+  return sig;
 }
 
 /**
@@ -327,6 +337,11 @@ export async function updateLedgerDepositCompDef(
     const latestBlockhash = await provider.connection.getLatestBlockhash();
     finalizeTx.recentBlockhash = latestBlockhash.blockhash;
     finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
-    return sig;
+
+    finalizeTx.sign(owner);
+
+    await provider.sendAndConfirm(finalizeTx);
   }
+
+  return sig;
 }

@@ -31,7 +31,7 @@ pub struct InitializeUserVault<'info> {
     #[account(
         init,
         payer = user,
-        seeds = [VAULT_SEED, mint.key().as_ref(), user.key().as_ref()],
+        seeds = [VAULT_SEED, mint.key().as_ref()],
         bump,
         token::mint = mint,
         token::authority = vault_authority,

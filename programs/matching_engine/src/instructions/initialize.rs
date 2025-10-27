@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 const ORDER_BOOK_STATE_SEED: &[u8] = b"order_book_state";
 use crate::{states::OrderBookState};
+use anchor_spl::token::{Token, TokenAccount, Mint};
+
+const VAULT_SEED: &[u8] = b"vault";
 
 pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint: Pubkey, quote_mint: Pubkey) -> Result<()> {
     let order_book_state = &mut ctx.accounts.orderbook_state;
@@ -20,6 +23,7 @@ pub fn initialize(ctx: Context<Initialize>, backend_pubkey: [u8; 32], base_mint:
 pub struct Initialize<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+
     #[account(
         init,
         payer = authority,
@@ -28,5 +32,37 @@ pub struct Initialize<'info> {
         bump
     )]
     pub orderbook_state: Box<Account<'info, OrderBookState>>,
+
+    /// CHECK: PDA authority for vault
+    #[account(
+        seeds = [b"vault_authority"],
+        bump,
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
+
+    pub base_mint: Account<'info, Mint>,
+    pub quote_mint: Account<'info, Mint>,
+    
+    #[account(
+        init,
+        payer = authority,
+        seeds = [VAULT_SEED, base_mint.key().as_ref()],
+        bump,
+        token::mint = base_mint,
+        token::authority = vault_authority,
+    )]
+    pub base_vault: Account<'info, TokenAccount>,
+
+    #[account(
+        init,
+        payer = authority,
+        seeds = [VAULT_SEED, quote_mint.key().as_ref()],
+        bump,
+        token::mint = quote_mint,
+        token::authority = vault_authority,
+    )]
+    pub quote_vault: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
