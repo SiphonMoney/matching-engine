@@ -315,22 +315,22 @@ mod circuits {
 
     #[instruction]
     pub fn submit_order(
-        user_sensitive: Enc<Shared, UserSensitiveData>,       // User's x25519
-        user_ledger: Enc<Mxe, &Balances>,                     // MXE
-        orderbook_ctx: Enc<Mxe, &OrderBook>,                  // MXE
+        user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
+        user_ledger: Enc<Mxe, &Balances>,               // MXE
+        orderbook_ctx: Enc<Mxe, &OrderBook>,            // MXE
         order_id: u64,
         order_type: u8,
         timestamp: u64,
     ) -> (
-        Enc<Mxe, OrderBook>,        // Updated orderbook
-        Enc<Mxe, Balances>,     // Updated ledger
-        Enc<Shared, OrderStatus>,   // For user to view
-        bool,                       // Success
+        Enc<Mxe, OrderBook>,      // Updated orderbook
+        Enc<Mxe, Balances>,       // Updated ledger
+        Enc<Shared, OrderStatus>, // For user to view
+        bool,                     // Success
     ) {
         let sensitive = user_sensitive.to_arcis();
         let mut ledger = *(user_ledger.to_arcis());
         let mut orderbook = *(orderbook_ctx.to_arcis());
-        
+
         // Calculate required amount
         let required = if order_type == 0 {
             // Buy order needs quote token
@@ -339,7 +339,7 @@ mod circuits {
             // Sell order needs base token
             sensitive.amount
         };
-        
+
         // Check available balance
         let available = if order_type == 0 {
             ledger.quote_available
@@ -348,12 +348,12 @@ mod circuits {
         };
 
         let mut possible = true;
-        
+
         if available < required {
             // Insufficient balance
             possible = false;
         }
-        
+
         // Lock funds
         if order_type == 0 {
             ledger.quote_available -= required;
@@ -362,7 +362,7 @@ mod circuits {
         } else {
             ledger.base_available -= required;
         }
-        
+
         // Add to orderbook
 
         let order = if possible {
@@ -376,7 +376,7 @@ mod circuits {
         } else {
             Order::empty()
         };
-        
+
         let success = if possible {
             if order_type == 0 {
                 orderbook.insert_buy(order)
@@ -386,28 +386,29 @@ mod circuits {
         } else {
             false
         };
-        
-        let status = if possible {OrderStatus {
-            order_type,
-            amount: sensitive.amount,
+
+        let status = if possible {
+            OrderStatus {
+                order_type,
+                amount: sensitive.amount,
                 price: sensitive.price,
-                status: if success { 1 } else { 2 },  // 1=processing, 2=rejected
+                status: if success { 1 } else { 2 }, // 1=processing, 2=rejected
                 locked_amount: if success { required } else { 0 },
                 filled_amount: 0,
                 execution_price: 0,
             }
         } else {
-            OrderStatus{
+            OrderStatus {
                 order_type,
                 amount: sensitive.amount,
                 price: sensitive.price,
-                status: 5,  // Status = 5: Insufficient balance
+                status: 5, // Status = 5: Insufficient balance
                 locked_amount: 0,
                 filled_amount: 0,
                 execution_price: 0,
             }
         };
-        
+
         (
             orderbook_ctx.owner.from_arcis(orderbook),
             user_ledger.owner.from_arcis(ledger),
@@ -420,7 +421,7 @@ mod circuits {
     pub fn match_orders(
         clanker_authority: Shared,
         order_book_ctxt: Enc<Mxe, &OrderBook>,
-    ) -> (Enc<Shared, MatchResult>, Enc<Mxe, OrderBook>) {
+    ) -> (Enc<Mxe, OrderBook>, Enc<Shared, MatchResult>, u8) {
         let mut order_book = *(order_book_ctxt.to_arcis());
         let mut result = MatchResult::empty();
 
@@ -474,8 +475,9 @@ mod circuits {
         result.num_matches = match_count;
 
         (
-            clanker_authority.from_arcis(result),
             order_book_ctxt.owner.from_arcis(order_book),
+            clanker_authority.from_arcis(result),
+            match_count.reveal(),
         )
     }
 
@@ -498,5 +500,37 @@ mod circuits {
         }
 
         ledger_ctx.owner.from_arcis(balances)
+    }
+
+
+    #[instruction]
+    pub fn update_ledger_withdraw(
+        ledger: Enc<Mxe, Balances>,
+        amount: u64,
+        is_base: u8,
+    ) -> (Enc<Mxe, Balances>, bool) {
+        let mut balances = ledger.to_arcis();
+
+        let available = if is_base == 0 {
+            balances.base_available
+        } else {
+            balances.quote_available
+        };
+
+        let mut possible = false;
+
+        if available >= amount {
+            // Insufficient balance
+            possible = true;
+            if is_base == 0 {
+                balances.base_total -= amount;
+                balances.base_available -= amount;
+            } else {
+                balances.quote_total -= amount;
+                balances.quote_available -= amount;
+            }
+        }
+
+        (ledger.owner.from_arcis(balances), possible.reveal())
     }
 }

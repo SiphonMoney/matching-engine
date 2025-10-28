@@ -38,7 +38,7 @@ pub fn submit_order(
         Argument::EncryptedU64(price),  // Client encrypts this
 
         // Enc<Mxe, Balances>
-        Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
+        Argument::PlaintextU128(ctx.accounts.user_ledger.balance_nonce),
         Argument::Account(
             ctx.accounts.user_ledger.key(),
             8 + 32,          // Offset: discriminator + owner
@@ -66,6 +66,10 @@ pub fn submit_order(
         vec![SubmitOrderCallback::callback_ix(&[
             CallbackAccount {
                 pubkey: ctx.accounts.orderbook_state.key(),
+                is_writable: true,
+            },
+            CallbackAccount {
+                pubkey: ctx.accounts.user_ledger.key(),
                 is_writable: true,
             },
             CallbackAccount {
@@ -136,7 +140,7 @@ pub struct SubmitOrder<'info> {
     pub vault: Account<'info, TokenAccount>,
 
     #[account(
-        init_if_needed,
+        init,
         payer = user,
         space = 8 + OrderAccount::INIT_SPACE,
         seeds = [
@@ -145,7 +149,7 @@ pub struct SubmitOrder<'info> {
         ],
         bump,
     )]
-    pub order_account: Box<Account<'info, OrderAccount>>,
+    pub order_account: Account<'info, OrderAccount>,
 
     #[account(
         mut,

@@ -12,7 +12,7 @@ pub struct OrderBookState {
     pub last_match_timestamp: i64,      // 8
     pub total_orders_processed: u64,    // 8
     pub total_matches: u64,             // 8
-    pub match_counter: u64,             // 8
+    // pub match_counter: u64,             // 8
     pub bump: u8,                       // 1
 }
 // Total: 1481 bytes

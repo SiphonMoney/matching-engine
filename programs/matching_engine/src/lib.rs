@@ -179,17 +179,33 @@ pub mod matching_engine {
     ) -> Result<()> {
         match &output {
             ComputationOutputs::Success(MatchOrdersOutput { field_0 }) => {
-                // Copy orderbook data directly
-                copy_orderbook_data!(&mut ctx.accounts.orderbook_state, &field_0.field_1);
+                let orderbook_enc = &field_0.field_0;
+                let matches_enc = &field_0.field_1;
+                let num_matches = field_0.field_2;
+                
+                // Update orderbook
+                copy_orderbook_data!(&mut ctx.accounts.orderbook_state, orderbook_enc);
+                
+                if num_matches > 0 {
+                    // Create MatchResult accounts for each match
+                    // The encrypted matches will be decrypted by backend
 
-                ctx.accounts.orderbook_state.total_matches =
-                    ctx.accounts.orderbook_state.total_matches.saturating_add(1);
-
-                msg!(
-                    "Matching completed. {} total matches",
-                    ctx.accounts.orderbook_state.total_matches
-                );
-
+                    let match1 = matches_enc.ciphertexts[0..5].try_into().unwrap();
+                    let mut match2 = [[0u8; 32]; 5];
+                    if num_matches > 1 {
+                        match2 = matches_enc.ciphertexts[5..10].try_into().unwrap();
+                    }
+                    ctx.accounts.orderbook_state.total_matches += num_matches as u64;
+                    
+                    emit!(MatchesFoundEvent {
+                        num_matches,
+                        match1,
+                        match2,
+                        nonce: matches_enc.nonce,
+                        timestamp: Clock::get()?.unix_timestamp,
+                    });
+                }
+                
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),
@@ -355,7 +371,7 @@ pub struct SubmitOrderCallback<'info> {
     #[account(mut)]
     pub orderbook_state: Box<Account<'info, OrderBookState>>,
     #[account(mut)]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
     #[account(mut)]
     pub order_account: Box<Account<'info, OrderAccount>>,
 }
@@ -446,14 +462,6 @@ pub struct UpdateLedgerDepositCallback<'info> {
 }
 
 #[event]
-pub struct MatchResultEvent {
-    pub results: [u8; 32],
-    pub nonce: u128,
-    pub orderbook_nonce: u128,
-    pub timestamp: i64,
-}
-
-#[event]
 pub struct OrderBookInitializedEvent {
     pub orderbook_nonce: u128,
     pub total_orders_processed: u64,
@@ -468,3 +476,19 @@ pub struct OrderSubmittedEvent {
     pub success: bool,
     pub timestamp: i64,
 }
+
+#[event]
+pub struct MatchesFoundEvent {
+    pub num_matches: u8,
+    pub match1: [[u8; 32]; 5],
+    pub match2: [[u8; 32]; 5],
+    pub nonce: u128,
+    pub timestamp: i64,
+}
+
+//each match is a 5 chunks of 32 bytes each
+// pub match_id: u64,
+// pub buyer_order_id: u64,
+// pub seller_order_id: u64,
+// pub quantity: u64,
+// pub execution_price: u64,
