@@ -18,7 +18,6 @@ pub use states::*;
 pub mod errors;
 pub use errors::ErrorCode;
 
-// Macro to copy orderbook data - minimizes stack usage
 
 #[arcium_program]
 pub mod matching_engine {
@@ -65,36 +64,45 @@ pub mod matching_engine {
         backend_pubkey: [u8; 32],
         base_mint: Pubkey,
         quote_mint: Pubkey,
+        callback_authority: Pubkey,
     ) -> Result<()> {
-        instructions::initialize(ctx, backend_pubkey, base_mint, quote_mint)?;
+        instructions::initialize(ctx, backend_pubkey, base_mint, quote_mint, callback_authority)?;
         Ok(())
     }
 
     pub fn init_encrypted_orderbook(
         ctx: Context<InitEncryptedOrderbook>,
         computation_offset: u64,
+        nonce: u128,
     ) -> Result<()> {
-        // Initialize orderbook state
-        ctx.accounts.orderbook_state.total_orders_processed = 0;
-        ctx.accounts.orderbook_state.total_matches = 0;
-        ctx.accounts.orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
+
+        let orderbook_state = &mut ctx.accounts.orderbook_state;
+        orderbook_state.total_orders_processed = 0;
+        orderbook_state.total_matches = 0;
+        orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
+        orderbook_state.orderbook_nonce = nonce;
 
         // Queue MPC computation to initialize encrypted orderbook
         let args = vec![
-            Argument::PlaintextU128(0), // Initial nonce
+            Argument::PlaintextU128(nonce), // Initial nonce
         ];
 
+        msg!("meow meow meow 4===========================================================================");
+
         ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+
 
         queue_computation(
             ctx.accounts,
             computation_offset,
             args,
             None,
-            vec![InitOrderBookCallback::callback_ix(&[CallbackAccount {
+            vec![InitOrderBookCallback::callback_ix(&[
+                CallbackAccount {
                 pubkey: ctx.accounts.orderbook_state.key(),
                 is_writable: true,
-            }])],
+            }
+            ])],
         )?;
         Ok(())
     }
@@ -121,7 +129,7 @@ pub mod matching_engine {
         orderbook_state.orderbook_nonce = orderbook_enc.nonce;
         orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
 
-        msg!("Orderbook initialized");
+        // msg!("Orderbook initialized with placeholder {:?}", somehting);
         Ok(())
     }
 
@@ -189,8 +197,16 @@ pub mod matching_engine {
 
                     let match1 = matches_enc.ciphertexts[0..5].try_into().unwrap();
                     let mut match2 = [[0u8; 32]; 5];
+                    let mut match3 = [[0u8; 32]; 5];
+                    let mut match4 = [[0u8; 32]; 5];
                     if num_matches > 1 {
                         match2 = matches_enc.ciphertexts[5..10].try_into().unwrap();
+                    }
+                    if num_matches > 2 {
+                        match3 = matches_enc.ciphertexts[10..15].try_into().unwrap();
+                    }
+                    if num_matches > 3 {
+                        match4 = matches_enc.ciphertexts[15..20].try_into().unwrap();
                     }
                     ctx.accounts.orderbook_state.total_matches += num_matches as u64;
                     
@@ -198,6 +214,8 @@ pub mod matching_engine {
                         num_matches,
                         match1,
                         match2,
+                        match3,
+                        match4,
                         nonce: matches_enc.nonce,
                         timestamp: Clock::get()?.unix_timestamp,
                     });
@@ -208,6 +226,53 @@ pub mod matching_engine {
             _ => Err(ErrorCode::AbortedComputation.into()),
         }
     }
+
+
+    // #[arcium_callback(encrypted_ix = "submit_order", network = "localnet")]
+    // pub fn submit_order_callback(
+    //     ctx: Context<SubmitOrderCallback>,
+    //     output: ComputationOutputs<SubmitOrderOutput>,
+    // ) -> Result<()> {
+    //     let o = match output {
+    //         ComputationOutputs::Success(SubmitOrderOutput {
+    //             field_0:
+    //                 SubmitOrderOutputStruct0 {
+    //                     field_0: orderbook_enc,
+    //                     field_1: ledger_enc,
+    //                     field_2: status_enc,
+    //                     field_3: success,
+    //                 },
+    //         }) => (orderbook_enc, ledger_enc, status_enc, success),
+    //         _ => return Err(ErrorCode::AbortedComputation.into()),
+    //     };
+
+    //     let orderbook_enc = o.0;
+    //     let ledger_enc = o.1;
+    //     let status_enc = o.2;
+    //     let success = o.3;
+
+    //     // update orderbook
+    //     ctx.accounts.orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+    //     ctx.accounts.orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
+
+    //     // update user ledger
+    //     ctx.accounts.user_ledger.balance_nonce = ledger_enc.nonce;
+    //     ctx.accounts.user_ledger.encrypted_balances = ledger_enc.ciphertexts;
+    //     ctx.accounts.user_ledger.last_update = Clock::get()?.unix_timestamp;
+        
+    //     // update order account
+    //     ctx.accounts.order_account.order_nonce = status_enc.nonce;
+    //     ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
+
+    //     emit!(OrderSubmittedEvent {
+    //         order_id: ctx.accounts.order_account.order_id,
+    //         user: ctx.accounts.order_account.user,
+    //         success,
+    //         timestamp: Clock::get()?.unix_timestamp,
+    //     });
+
+    //     Ok(())
+    // }
 
     #[arcium_callback(encrypted_ix = "submit_order", network = "localnet")]
     pub fn submit_order_callback(
@@ -222,6 +287,7 @@ pub mod matching_engine {
         ctx: Context<SubmitOrderCallback>,
         output: ComputationOutputs<SubmitOrderOutput>,
     ) -> Result<()> {
+        msg!("Submit order callback - processing result");
         match &output {
             ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
                 let orderbook_enc = &field_0.field_0;
@@ -229,25 +295,37 @@ pub mod matching_engine {
                 let status_enc = &field_0.field_2;
                 let success = field_0.field_3;
                 
-                // Update orderbook
-                let orderbook_state = &mut ctx.accounts.orderbook_state;
-                orderbook_state.orderbook_nonce = orderbook_enc.nonce;
-                orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                ctx.accounts.orderbook_state.total_orders_processed += 1;
+                // CALLBACK SERVER PATTERN:
+                // The full orderbook data is TOO LARGE for on-chain callback
+                // Instead, we store a hash and mark as pending finalization
+                // The callback server will receive the full data and call finalize_submit_order
                 
-                // Update user ledger
+                // Hash the orderbook ciphertext chunks
+                use anchor_lang::solana_program::hash::hash;
+                let orderbook_bytes: Vec<u8> = orderbook_enc.ciphertexts
+                    .iter()
+                    .flat_map(|chunk| chunk.iter().copied())
+                    .collect();
+                let orderbook_hash = hash(&orderbook_bytes);
+                
+                // Store hash and mark as pending
+                ctx.accounts.orderbook_state.pending_orderbook_hash = orderbook_hash.to_bytes();
+                ctx.accounts.orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+                ctx.accounts.orderbook_state.pending_finalization = true;
+                
+                msg!("Orderbook hash stored: {:?}", orderbook_hash.to_bytes());
+                msg!("Awaiting finalization from callback server");
+                
+                // Update user ledger (this fits in the callback)
                 ctx.accounts.user_ledger.balance_nonce = ledger_enc.nonce;
-                for i in 0..4 {
-                    ctx.accounts.user_ledger.encrypted_balances[i] = ledger_enc.ciphertexts[i];
-                }
+                ctx.accounts.user_ledger.encrypted_balances = ledger_enc.ciphertexts;
                 ctx.accounts.user_ledger.last_update = Clock::get()?.unix_timestamp;
                 
-                // Update order account
+                // Update order account (this fits in the callback)
                 ctx.accounts.order_account.order_nonce = status_enc.nonce;
-                for i in 0..7 {
-                    ctx.accounts.order_account.encrypted_order[i] = status_enc.ciphertexts[i];
-                }
+                ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
                 
+                msg!("Order submitted, pending orderbook finalization");
                 emit!(OrderSubmittedEvent {
                     order_id: ctx.accounts.order_account.order_id,
                     user: ctx.accounts.order_account.user,
@@ -260,6 +338,48 @@ pub mod matching_engine {
             _ => Err(ErrorCode::AbortedComputation.into()),
         }
     }
+    // NEW: Finalize instruction called by callback server with full orderbook data
+    #[inline(never)]
+    pub fn finalize_submit_order(
+        ctx: Context<FinalizeSubmitOrder>,
+        orderbook_data: [[u8; 32]; 32], // Full encrypted orderbook from callback server
+    ) -> Result<()> {
+        let orderbook_state = &mut ctx.accounts.orderbook_state;
+        
+        // 1. Verify we're expecting a finalization
+        require!(
+            orderbook_state.pending_finalization,
+            ErrorCode::NotPendingFinalization
+        );
+        
+        // 2. Compute hash of submitted data
+        use anchor_lang::solana_program::hash::hash;
+        let submitted_bytes: Vec<u8> = orderbook_data
+            .iter()
+            .flat_map(|chunk| chunk.iter().copied())
+            .collect();
+        let submitted_hash = hash(&submitted_bytes);
+        
+        // 3. Verify it matches the hash from the MPC callback
+        let expected_hash = orderbook_state.pending_orderbook_hash;
+        
+        require!(
+            submitted_hash.to_bytes() == expected_hash,
+            ErrorCode::HashMismatch
+        );
+        
+        msg!("Hash verified! Storing orderbook data");
+        
+        // 4. Hash matches! Store the full data
+        orderbook_state.orderbook_data = orderbook_data;
+        orderbook_state.pending_finalization = false;
+        orderbook_state.pending_orderbook_hash = [0u8; 32]; // Clear the hash
+        orderbook_state.total_orders_processed += 1;
+        
+        msg!("Orderbook finalized successfully");
+        Ok(())
+    }
+
     pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
         instructions::withdraw_from_vault(ctx, amount)?;
         Ok(())
@@ -292,9 +412,7 @@ pub mod matching_engine {
                 let ledger = &mut ctx.accounts.user_ledger;
 
                 ledger.balance_nonce = balances_enc.nonce;
-                for i in 0..4 {
-                    ledger.encrypted_balances[i] = balances_enc.ciphertexts[i];
-                }
+                ledger.encrypted_balances = balances_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
 
                 msg!("User ledger updated after deposit");
@@ -322,9 +440,7 @@ pub mod matching_engine {
             ComputationOutputs::Success(InitUserLedgerOutput { field_0: ledger_enc }) => {
                 let ledger = &mut ctx.accounts.user_ledger;
                 ledger.balance_nonce = ledger_enc.nonce;
-                for i in 0..4 {
-                    ledger.encrypted_balances[i] = ledger_enc.ciphertexts[i];
-                }
+                ledger.encrypted_balances = ledger_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
                 Ok(())
             }
@@ -460,6 +576,17 @@ pub struct UpdateLedgerDepositCallback<'info> {
     pub user_ledger: Account<'info, UserPrivateLedger>,
 }
 
+// Accounts for finalize_submit_order (called by callback server)
+#[derive(Accounts)]
+pub struct FinalizeSubmitOrder<'info> {
+    #[account(mut)]
+    pub orderbook_state: Account<'info, OrderBookState>,
+    
+    // Only the callback authority can finalize
+    #[account(constraint = callback_authority.key() == orderbook_state.callback_authority @ ErrorCode::UnauthorizedCallbackFinalizer)]
+    pub callback_authority: Signer<'info>,
+}
+
 #[event]
 pub struct OrderBookInitializedEvent {
     pub orderbook_nonce: u128,
@@ -481,6 +608,8 @@ pub struct MatchesFoundEvent {
     pub num_matches: u8,
     pub match1: [[u8; 32]; 5],
     pub match2: [[u8; 32]; 5],
+    pub match3: [[u8; 32]; 5],
+    pub match4: [[u8; 32]; 5],
     pub nonce: u128,
     pub timestamp: i64,
 }

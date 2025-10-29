@@ -27,3 +27,6 @@ pub use initialize_user_ledger::*;
 
 pub mod deposit_to_ledger;
 pub use deposit_to_ledger::*;
+
+pub mod withdraw_from_ledger;
+pub use withdraw_from_ledger::*;

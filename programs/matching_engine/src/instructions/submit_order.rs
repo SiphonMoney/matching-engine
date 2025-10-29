@@ -26,6 +26,14 @@ pub fn submit_order(
     order_id: u64,
     order_nonce: u128,
 ) -> Result<()> {
+    //initialize the orderaccount
+    ctx.accounts.order_account.order_id = order_id;
+    ctx.accounts.order_account.user = ctx.accounts.user.key();
+    ctx.accounts.order_account.user_enc_pubkey = user_pubkey;
+    ctx.accounts.order_account.order_nonce = order_nonce;
+    ctx.accounts.order_account.bump = ctx.bumps.order_account;
+    ctx.accounts.order_account.timestamp = Clock::get()?.unix_timestamp;
+    
 
     //initialize the order account
     let order_account = &mut ctx.accounts.order_account;
@@ -59,7 +67,7 @@ pub fn submit_order(
         Argument::Account(
             ctx.accounts.orderbook_state.key(),
             8 + 32,      // Offset: discriminator(8) + authority(32) = 40
-            52 * 32,     // Size: 52 chunks × 32 bytes = 1312 bytes
+            32 * 32,     // Size: 52 chunks × 32 bytes = 1312 bytes
         ),
 
         Argument::PlaintextU64(order_id),
@@ -88,7 +96,6 @@ pub fn submit_order(
         ])],
     )?;
 
-    // panic!("test");
 
     Ok(())
 }

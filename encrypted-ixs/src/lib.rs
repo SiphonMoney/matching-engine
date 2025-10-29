@@ -4,7 +4,7 @@ use arcis_imports::*;
 mod circuits {
     use arcis_imports::*;
 
-    pub const MAX_ORDERS: usize = 5;
+    pub const MAX_ORDERS: usize = 3;
     pub const MAX_MATCHES_PER_BATCH: usize = 2;
 
     #[derive(Copy, Clone)]
@@ -311,7 +311,7 @@ mod circuits {
         pub price: u64,
     }
 
-    // TODO : user_ledger init in mxe
+    // pub
 
     #[instruction]
     pub fn submit_order(

@@ -18,4 +18,10 @@ pub enum ErrorCode {
     AlreadySettled,
     #[msg("Unauthorized settlement")]
     UnauthorizedSettlement,
+    #[msg("Not pending finalization")]
+    NotPendingFinalization,
+    #[msg("Hash mismatch - data integrity check failed")]
+    HashMismatch,
+    #[msg("Unauthorized callback finalizer")]
+    UnauthorizedCallbackFinalizer,
 }
