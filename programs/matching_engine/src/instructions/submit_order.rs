@@ -27,6 +27,15 @@ pub fn submit_order(
     order_nonce: u128,
 ) -> Result<()> {
 
+    //initialize the order account
+    let order_account = &mut ctx.accounts.order_account;
+    order_account.order_id = order_id;
+    order_account.user = ctx.accounts.user.key();
+    order_account.user_enc_pubkey = user_pubkey;
+    order_account.order_nonce = order_nonce;
+    order_account.timestamp = Clock::get()?.unix_timestamp;
+    order_account.bump = ctx.bumps.order_account;
+
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     
     let args = vec![        

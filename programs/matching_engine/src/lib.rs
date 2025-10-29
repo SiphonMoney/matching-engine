@@ -19,15 +19,6 @@ pub mod errors;
 pub use errors::ErrorCode;
 
 // Macro to copy orderbook data - minimizes stack usage
-macro_rules! copy_orderbook_data {
-    ($orderbook_state:expr, $encrypted:expr) => {{
-        $orderbook_state.orderbook_nonce = $encrypted.nonce;
-        let ciphertexts = &$encrypted.ciphertexts;
-        for i in 0..52 {
-            $orderbook_state.orderbook_data[i] = ciphertexts[i];
-        }
-    }};
-}
 
 #[arcium_program]
 pub mod matching_engine {
@@ -121,7 +112,9 @@ pub mod matching_engine {
         };
 
         // Copy orderbook data
-        copy_orderbook_data!(&mut ctx.accounts.orderbook_state, orderbook_enc);
+        let orderbook_state = &mut ctx.accounts.orderbook_state;
+        orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+        orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
 
         ctx.accounts.orderbook_state.total_orders_processed = 0;
         ctx.accounts.orderbook_state.total_matches = 0;
@@ -184,7 +177,10 @@ pub mod matching_engine {
                 let num_matches = field_0.field_2;
                 
                 // Update orderbook
-                copy_orderbook_data!(&mut ctx.accounts.orderbook_state, orderbook_enc);
+
+                let orderbook_state = &mut ctx.accounts.orderbook_state;
+                orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+                orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
                 
                 if num_matches > 0 {
                     // Create MatchResult accounts for each match
@@ -233,7 +229,9 @@ pub mod matching_engine {
                 let success = field_0.field_3;
                 
                 // Update orderbook
-                copy_orderbook_data!(&mut ctx.accounts.orderbook_state, orderbook_enc);
+                let orderbook_state = &mut ctx.accounts.orderbook_state;
+                orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+                orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
                 ctx.accounts.orderbook_state.total_orders_processed += 1;
                 
                 // Update user ledger
