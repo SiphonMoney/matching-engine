@@ -74,6 +74,11 @@ pub mod matching_engine {
         ctx: Context<InitEncryptedOrderbook>,
         computation_offset: u64,
     ) -> Result<()> {
+        // Initialize orderbook state
+        ctx.accounts.orderbook_state.total_orders_processed = 0;
+        ctx.accounts.orderbook_state.total_matches = 0;
+        ctx.accounts.orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
+
         // Queue MPC computation to initialize encrypted orderbook
         let args = vec![
             Argument::PlaintextU128(0), // Initial nonce
@@ -115,10 +120,6 @@ pub mod matching_engine {
         let orderbook_state = &mut ctx.accounts.orderbook_state;
         orderbook_state.orderbook_nonce = orderbook_enc.nonce;
         orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-
-        ctx.accounts.orderbook_state.total_orders_processed = 0;
-        ctx.accounts.orderbook_state.total_matches = 0;
-        ctx.accounts.orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
 
         msg!("Orderbook initialized");
         Ok(())
