@@ -1,8 +1,8 @@
-# Dark Pool Trading Platform - Technical Architecture (2 Min Overview)
+# Dark Pool Trading Platform - Technical Architecture 
 
 ---
 
-## 1. What We're Building (15 seconds)
+## 1. What We're Building
 
 **A fully private dark pool trading platform where:**
 - Order details (amount, price) are **encrypted end-to-end**
@@ -25,7 +25,7 @@ graph LR
 
 ---
 
-## 2. Core Architecture - Three Layers (30 seconds)
+## 2. Core Architecture - Three Layers 
 
 ### Layer 1: On-Chain Program (Solana)
 
@@ -79,7 +79,7 @@ sequenceDiagram
 
 ---
 
-### Layer 3: Cranker Service (Backend) (30 seconds)
+### Layer 3: Cranker Service (Backend) 
 
 **Event-Driven Settlement:**
 
@@ -110,7 +110,7 @@ graph TB
 
 ---
 
-## 3. Frontend - Client-Side Encryption (20 seconds)
+## 3. Frontend - Client-Side Encryption 
 
 **Dual-Key System:**
 
@@ -143,7 +143,7 @@ graph LR
 
 ---
 
-## 4. In-App Settlement Flow (25 seconds)
+## 4. In-App Settlement Flow 
 
 **Complete Order Lifecycle:**
 
@@ -188,7 +188,7 @@ sequenceDiagram
 
 ---
 
-## 5. Security Properties (10 seconds)
+## 5. Security Properties 
 
 ### Minimal Attack Surface
 
@@ -224,7 +224,7 @@ graph TD
 
 ---
 
-## 6. Event-Driven Architecture (10 seconds)
+## 6. Event-Driven Architecture 
 
 **Why Events Instead of Queries?**
 
@@ -251,7 +251,7 @@ graph LR
 
 ---
 
-## 7. Key Differentiators (10 seconds)
+## 7. Key Differentiators 
 
 ### vs Traditional Dark Pools (TradFi)
 - ❌ TradFi: Centralized, custodial, trust required
@@ -267,7 +267,7 @@ graph LR
 
 ---
 
-## 8. Technical Stack Summary (5 seconds)
+## 8. Technical Stack Summary 
 
 ```
 ┌─────────────────────────────────────────┐
@@ -295,7 +295,7 @@ graph LR
 │    matching    │  │ - No custody    │
 └────────────────┘  └─────────────────┘
 ```
-
+<!-- 
 ---
 
 ## 9. Current Status & Demo
@@ -318,7 +318,7 @@ graph LR
 
 ---
 
-## Conclusion (5 seconds)
+## Conclusion 
 
 **We've built a fully private dark pool where:**
 1. 🔒 **All sensitive data encrypted** (balances, orders, matches)
@@ -328,8 +328,8 @@ graph LR
 
 **Privacy + Decentralization + Performance**
 
----
-
+--- -->
+<!-- 
 ## Narration Script (Exactly 2 Minutes)
 
 > [0:00-0:15] "We're building a dark pool trading platform with end-to-end encryption. Order details, balances, everything is encrypted on-chain using Arcium's MPC network. Even the platform operator can't see your data."
@@ -379,4 +379,4 @@ graph LR
 3. 🎯 **"Encrypted end-to-end"** - From client to MPC to storage
 4. 🔐 **"MPC validates, not reveals"** - Computation on encrypted data
 
-Good luck with your presentation! 🚀
+Good luck with your presentation! 🚀 -->
