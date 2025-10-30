@@ -322,10 +322,15 @@ pub mod matching_engine {
             ComputationOutputs::Success(InitUserLedgerOutput { field_0: ledger_enc }) => {
                 let ledger = &mut ctx.accounts.user_ledger;
                 ledger.balance_nonce = ledger_enc.nonce;
-                for i in 0..4 {
-                    ledger.encrypted_balances[i] = ledger_enc.ciphertexts[i];
-                }
+                ledger.encrypted_balances = ledger_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
+
+                event!(UserLedgerInitializedEvent {
+                    user: ledger.owner,
+                    balance_nonce: ledger.balance_nonce,
+                    encrypted_balances: ledger.encrypted_balances,
+                    last_update: ledger.last_update,
+                });
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),

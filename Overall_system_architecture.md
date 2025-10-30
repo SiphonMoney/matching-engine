@@ -62,11 +62,11 @@ graph TB
     style EVENTS fill:#ffff99
 ```
 
-**Key Changes:**
+<!-- **Key Changes:**
 - **UserPrivateLedger**: MXE-encrypted balances (not backend-encrypted)
 - **No MatchResult PDAs**: Events-only architecture
 - **In-app settlement**: All balance tracking happens in-app via encrypted ledgers
-- **Atomic settlement**: Backend listens to events and settles at SPL vault level
+- **Atomic settlement**: Backend listens to events and settles at SPL vault level -->
 
 ---
 
@@ -199,13 +199,11 @@ sequenceDiagram
     
     FE->>Program: submitOrder(<br/>  encrypted_amount[32],<br/>  encrypted_price[32],<br/>  user_pubkey[32],<br/>  order_type=0,<br/>  order_id=12,<br/>  order_nonce=123<br/>)
     
-    <!-- Note over Program: ⚠️ KEY ISSUE: How to pass encrypted struct? -->
     
     Program->>Program: Create OrderAccount PDA<br/>seeds = [b"order", order_id]
     
     Program->>MXE: Queue submit_order<br/>Args: [<br/>  user_sensitive (Enc<Shared, UserSensitiveData>),<br/>  user_ledger (Enc<Mxe, &Balances>),<br/>  orderbook (Enc<Mxe, &OrderBook>),<br/>  order_id=12,<br/>  order_type=0,<br/>  timestamp<br/>]
     
-    <!-- Note over Program,MXE: 🔴 CURRENT PROBLEM:<br/>Passing Argument::EncryptedU64(amount)<br/>+ Argument::EncryptedU64(price)<br/>doesn't match Enc<Shared, Struct> -->
     
     MXE->>Circuit: Execute submit_order
     
@@ -584,10 +582,5 @@ graph LR
 5. ✅ **Balance validation in MPC** - orders checked against encrypted ledger
    - Prevents overdraft
    - Privacy-preserving
-
-6. ❌ **Current Issue: Passing `Enc<Shared, Struct>` with multiple fields**
-   - Solution: Store encrypted data on-chain first (in OrderAccount)
-   - Pass by reference using `Argument::Account` (like blackjack example)
-   - OR: Change circuit to accept two separate `Enc<Shared, u64>` parameters
 
 ---
