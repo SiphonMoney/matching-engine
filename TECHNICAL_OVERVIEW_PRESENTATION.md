@@ -93,7 +93,7 @@ graph TB
     F --> G[Mark Match as Settled]
     
     style B fill:#f99
-    style E fill:#9f9
+    style E fill:#cc4f06
 ```
 
 **Cranker Responsibilities:**
@@ -122,9 +122,9 @@ graph LR
     A -->|Wallet Signature| F[Encryption Key]
     F -->|Derives| C
     
-    style A fill:#9cf
-    style C fill:#fc9
-    style E fill:#ccc
+    style A fill:#cc4f06
+    style C fill:#cc062a
+    style E fill:#cc4f06
 ```
 
 **Key Management:**
