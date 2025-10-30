@@ -1,15 +1,19 @@
 # Updated Dark Pool Architecture with In-App Settlement
 
 ## Table of Contents
-- [1. System Architecture Overview](#1-system-architecture-overview)
-- [2. User Ledger Initialization Flow](#2-user-ledger-initialization-flow)
-- [3. Deposit Flow](#3-deposit-flow)
-- [4. Order Submission with Balance Validation](#4-order-submission-with-balance-validation)
-- [5. Order Matching Flow](#5-order-matching-flow)
-- [6. Backend Settlement (Event-Based)](#6-backend-settlement-event-based)
-- [7. Complete End-to-End User Journey](#7-complete-end-to-end-user-journey)
-- [8. Account Relationships](#8-account-relationships)
-- [9. Data Privacy Levels](#9-data-privacy-levels)
+- [Updated Dark Pool Architecture with In-App Settlement](#updated-dark-pool-architecture-with-in-app-settlement)
+  - [Table of Contents](#table-of-contents)
+  - [1. System Architecture Overview](#1-system-architecture-overview)
+  - [2. User Ledger Initialization Flow](#2-user-ledger-initialization-flow)
+  - [3. Deposit Flow](#3-deposit-flow)
+  - [4. Order Submission with Balance Validation](#4-order-submission-with-balance-validation)
+  - [5. Order Matching Flow](#5-order-matching-flow)
+  - [6. Backend Settlement (Event-Based)](#6-backend-settlement-event-based)
+  - [7. Complete End-to-End User Journey](#7-complete-end-to-end-user-journey)
+  - [8. Account Relationships](#8-account-relationships)
+  - [9. Data Privacy Levels](#9-data-privacy-levels)
+  - [Summary: Key Design Decisions](#summary-key-design-decisions)
+  - [Next Steps to Fix](#next-steps-to-fix)
 
 ---
 
@@ -84,7 +88,7 @@ sequenceDiagram
     
     Program->>Program: Create UserPrivateLedger PDA<br/>seeds = [b"user_ledger", user.pubkey]
     
-    Program->>Ledger: Initialize account<br/>owner = user<br/>encrypted_balances = [[0; 32]; 4]<br/>balance_nonce = 0
+    Program->>Ledger: Initialize account<br/>owner = user<br/>encrypted_balances = <br/>balance_nonce = 0
     
     Program->>MXE: Queue init_user_ledger computation<br/>Args: [nonce=0]
     
@@ -307,7 +311,7 @@ sequenceDiagram
     Circuit->>Circuit: Remove matched orders from orderbook
     Circuit->>Circuit: Encrypt results for backend
     
-    Circuit-->>MXE: Return (<br/>  Enc<Shared, [MatchResult; 3]>,<br/>  Enc<Mxe, OrderBook><br/>)
+    Circuit-->>MXE: Return (<br/>  Enc<Shared, (MatchResult, 3))>, <br/>  Enc<Mxe, OrderBook><br/>)
     
     MXE->>Program: Callback with results
     
@@ -467,7 +471,7 @@ graph TB
     end
     
     subgraph "Global State"
-        OB[OrderBookState<br/>PDA: order_book_state<br/>MXE Encrypted:<br/>- buy_orders[5]<br/>- sell_orders[5]<br/>- counts]
+        OB[OrderBookState<br/>PDA: order_book_state <br/> MXE Encrypted:<br/>- buy_orders-5 <br/>- sell_orders-5<br/>- counts]
         BASE_VAULT[Base Token Vault<br/>PDA: vault/base_mint]
         QUOTE_VAULT[Quote Token Vault<br/>PDA: vault/quote_mint]
     end
