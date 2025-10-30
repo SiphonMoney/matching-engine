@@ -36,8 +36,8 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn deposit_to_ledger(ctx: Context<DepositToLedger>, amount: u64, is_base_token: bool, computation_offset: u64) -> Result<()> {
-        instructions::deposit_to_ledger(ctx, amount, is_base_token, computation_offset)?;
+    pub fn deposit_to_ledger(ctx: Context<DepositToLedger>, user_pubkey: [u8; 32], amount: u64, is_base_token: bool, computation_offset: u64) -> Result<()> {
+        instructions::deposit_to_ledger(ctx, user_pubkey, amount, is_base_token, computation_offset)?;
         Ok(())
     }
 
@@ -189,8 +189,16 @@ pub mod matching_engine {
 
                     let match1 = matches_enc.ciphertexts[0..5].try_into().unwrap();
                     let mut match2 = [[0u8; 32]; 5];
+                    let mut match3 = [[0u8; 32]; 5];
+                    let mut match4 = [[0u8; 32]; 5];
                     if num_matches > 1 {
                         match2 = matches_enc.ciphertexts[5..10].try_into().unwrap();
+                    }
+                    if num_matches > 2 {
+                        match3 = matches_enc.ciphertexts[10..15].try_into().unwrap();
+                    }
+                    if num_matches > 3 {
+                        match4 = matches_enc.ciphertexts[15..20].try_into().unwrap();
                     }
                     ctx.accounts.orderbook_state.total_matches += num_matches as u64;
                     
@@ -198,6 +206,8 @@ pub mod matching_engine {
                         num_matches,
                         match1,
                         match2,
+                        match3,
+                        match4,
                         nonce: matches_enc.nonce,
                         timestamp: Clock::get()?.unix_timestamp,
                     });
@@ -275,8 +285,8 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn initialize_user_ledger(ctx: Context<InitializeUserLedger>, computation_offset: u64) -> Result<()> {
-        instructions::initialize_user_ledger(ctx, computation_offset)?;
+    pub fn initialize_user_ledger(ctx: Context<InitializeUserLedger>, user_pubkey: [u8; 32], user_nonce: u128, computation_offset: u64) -> Result<()> {
+        instructions::initialize_user_ledger(ctx, user_pubkey, user_nonce, computation_offset)?;
         Ok(())
     }
 
@@ -292,10 +302,15 @@ pub mod matching_engine {
                 let ledger = &mut ctx.accounts.user_ledger;
 
                 ledger.balance_nonce = balances_enc.nonce;
-                for i in 0..4 {
-                    ledger.encrypted_balances[i] = balances_enc.ciphertexts[i];
-                }
+                ledger.encrypted_balances = balances_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
+
+                emit!(UserLedgerDepositedEvent {
+                    user: ledger.owner,
+                    balance_nonce: ledger.balance_nonce,
+                    encrypted_balances: ledger.encrypted_balances,
+                    last_update: ledger.last_update,
+                });
 
                 msg!("User ledger updated after deposit");
                 Ok(())
@@ -304,10 +319,6 @@ pub mod matching_engine {
         }
     }
 
-    pub fn init_user_ledger(ctx: Context<InitializeUserLedger>, computation_offset: u64) -> Result<()> {
-        instructions::initialize_user_ledger(ctx, computation_offset)?;
-        Ok(())
-    }
 
     #[arcium_callback(encrypted_ix = "init_user_ledger", network = "localnet")]
     pub fn init_user_ledger_callback(
@@ -325,12 +336,13 @@ pub mod matching_engine {
                 ledger.encrypted_balances = ledger_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
 
-                event!(UserLedgerInitializedEvent {
+                msg!("User ledger initialized");
+                emit!(UserLedgerInitializedEvent {
                     user: ledger.owner,
                     balance_nonce: ledger.balance_nonce,
-                    encrypted_balances: ledger.encrypted_balances,
                     last_update: ledger.last_update,
                 });
+                msg!("User ledger initialized event emitted");
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),
@@ -486,6 +498,8 @@ pub struct MatchesFoundEvent {
     pub num_matches: u8,
     pub match1: [[u8; 32]; 5],
     pub match2: [[u8; 32]; 5],
+    pub match3: [[u8; 32]; 5],
+    pub match4: [[u8; 32]; 5],
     pub nonce: u128,
     pub timestamp: i64,
 }
@@ -496,3 +510,18 @@ pub struct MatchesFoundEvent {
 // pub seller_order_id: u64,
 // pub quantity: u64,
 // pub execution_price: u64,
+
+#[event]
+pub struct UserLedgerInitializedEvent {
+    pub user: Pubkey,
+    pub balance_nonce: u128,
+    pub last_update: i64,
+}
+
+#[event]
+pub struct UserLedgerDepositedEvent {
+    pub user: Pubkey,
+    pub balance_nonce: u128,
+    pub encrypted_balances: [[u8; 32]; 4],
+    pub last_update: i64,
+}

@@ -4,8 +4,8 @@ use arcis_imports::*;
 mod circuits {
     use arcis_imports::*;
 
-    pub const MAX_ORDERS: usize = 5;
-    pub const MAX_MATCHES_PER_BATCH: usize = 2;
+    pub const MAX_ORDERS: usize = 4;
+    pub const MAX_MATCHES_PER_BATCH: usize = 4;
 
     #[derive(Copy, Clone)]
     pub struct Order {
@@ -297,21 +297,20 @@ mod circuits {
     }
 
     #[instruction]
-    pub fn init_user_ledger(mxe: Mxe) -> Enc<Mxe, Balances> {
+    pub fn init_user_ledger(user: Shared) -> Enc<Shared, Balances> {
         let balances = Balances {
             base_total: 0,
             base_available: 0,
             quote_total: 0,
             quote_available: 0,
         };
-        mxe.from_arcis(balances)
+        user.from_arcis(balances)
     }
     pub struct UserSensitiveData {
         pub amount: u64,
         pub price: u64,
     }
 
-    // TODO : user_ledger init in mxe
 
     #[instruction]
     pub fn submit_order(
@@ -483,10 +482,10 @@ mod circuits {
 
     #[instruction]
     pub fn update_ledger_deposit(
-        ledger_ctx: Enc<Mxe, &Balances>, // Current encrypted balances
+        ledger_ctx: Enc<Shared, &Balances>, // Current encrypted balances
         amount: u64,
         is_base: u8,
-    ) -> Enc<Mxe, Balances> {
+    ) -> Enc<Shared, Balances> {
         let mut balances = *(ledger_ctx.to_arcis());
 
         if is_base == 0 {

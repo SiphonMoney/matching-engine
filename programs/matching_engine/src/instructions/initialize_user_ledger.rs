@@ -13,12 +13,14 @@ use crate::ID_CONST;
 
 pub fn initialize_user_ledger(
     ctx: Context<InitializeUserLedger>,
+    user_pubkey: [u8; 32],
+    user_nonce: u128,
     computation_offset: u64,
 ) -> Result<()> {
     let ledger = &mut ctx.accounts.user_ledger;
 
     ledger.owner = ctx.accounts.user.key();
-    ledger.encrypted_balances = [[0u8; 32]; 4];  // Will be encrypted zeros
+    // ledger.encrypted_balances = [[0u8; 32]; 4];  // Will be encrypted zeros
     ledger.balance_nonce = 0;
     ledger.last_update = Clock::get()?.unix_timestamp;
     ledger.bump = ctx.bumps.user_ledger;
@@ -26,7 +28,8 @@ pub fn initialize_user_ledger(
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     let args = vec![
-        Argument::PlaintextU128(0), // Initial nonce
+        Argument::ArcisPubkey(user_pubkey),
+        Argument::PlaintextU128(user_nonce), // Initial nonce
     ];
 
     queue_computation(
@@ -50,7 +53,7 @@ pub fn initialize_user_ledger(
 
 #[queue_computation_accounts("init_user_ledger", user)]
 #[derive(Accounts)]
-#[instruction(computation_offset: u64)]
+#[instruction(user_pubkey: [u8; 32], user_nonce: u128, computation_offset: u64)]
 pub struct InitializeUserLedger<'info> {
     #[account(mut)]
     pub user: Signer<'info>,

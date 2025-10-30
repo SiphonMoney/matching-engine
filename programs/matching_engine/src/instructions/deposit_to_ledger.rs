@@ -18,6 +18,7 @@ use crate::ID_CONST;
 
 pub fn deposit_to_ledger(
     ctx: Context<DepositToLedger>,
+    user_pubkey: [u8; 32],
     amount: u64,
     is_base_token: bool,
     computation_offset: u64,
@@ -40,7 +41,8 @@ pub fn deposit_to_ledger(
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     
     let args = vec![
-        // Current encrypted balances
+        // Current encrypted balances for the user
+        Argument::ArcisPubkey(user_pubkey),
         Argument::PlaintextU128(ctx.accounts.user_ledger.balance_nonce),
         Argument::Account(
             ctx.accounts.user_ledger.key(),
@@ -72,6 +74,7 @@ pub fn deposit_to_ledger(
 #[queue_computation_accounts("update_ledger_deposit", user)]
 #[derive(Accounts)]
 #[instruction(
+    user_pubkey: [u8; 32],
     amount: u64,
     is_base_token: bool,
     computation_offset: u64,

@@ -83,7 +83,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   let user1token2ATA: PublicKey;
   let user2token1ATA: PublicKey;
   let user2token2ATA: PublicKey;
-  let User1PublicKey: Uint8Array; 
+  let User1PublicKey: Uint8Array;
   let User1PrivateKey: Uint8Array;
   let User1SharedSecret: Uint8Array;
   let User2PublicKey: Uint8Array;
@@ -91,21 +91,21 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   let User2SharedSecret: Uint8Array;
 
   // Event helper
-  type Event = anchor.IdlEvents<typeof program.idl>;
+  type Event = anchor.IdlEvents<(typeof program)["idl"]>;
   const awaitEvent = async <E extends keyof Event>(
     eventName: E,
-    timeoutMs: number = 60000
+    timeoutMs = 60000
   ): Promise<Event[E]> => {
     let listenerId: number;
     let timeoutId: NodeJS.Timeout;
-    const event = await new Promise<Event[E]>((resolve, reject) => {
-      listenerId = program.addEventListener(eventName, (event) => {
+    const event = await new Promise<Event[E]>((res, rej) => {
+      listenerId = program.addEventListener(eventName as any, (event) => {
         if (timeoutId) clearTimeout(timeoutId);
-        resolve(event);
+        res(event);
       });
       timeoutId = setTimeout(() => {
         program.removeEventListener(listenerId);
-        reject(new Error(`Event ${eventName} timed out after ${timeoutMs}ms`));
+        rej(new Error(`Event ${eventName} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     });
     await program.removeEventListener(listenerId);
@@ -660,10 +660,32 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         "hex"
       );
 
+      // Get MXE public key
+      mxePublicKey = await getMXEPublicKeyWithRetry(
+        provider as anchor.AnchorProvider,
+        program.programId
+      );
+
+      // Generate encryption keys for User1
+      const User1PrivateKey = x25519.utils.randomSecretKey();
+      const User1PublicKey = x25519.getPublicKey(User1PrivateKey);
+      const User1SharedSecret = x25519.getSharedSecret(
+        User1PrivateKey,
+        mxePublicKey
+      );
+      const User1Cipher = new RescueCipher(User1SharedSecret);
+
+      const userLedgerNonce = randomBytes(16);
+
+      const initializeUserLedgerPromise = awaitEvent("userLedgerInitializedEvent");
 
       // initlialize a user ledger and then deposit to the ledger
       await program.methods
-        .initializeUserLedger(InitUserLedgerComputationOffset)
+        .initializeUserLedger(
+          Array.from(User1PublicKey),
+          new anchor.BN(deserializeLE(userLedgerNonce).toString()),
+          InitUserLedgerComputationOffset
+        )
         .accountsPartial({
           computationAccount: getComputationAccAddress(
             program.programId,
@@ -699,6 +721,10 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         program.programId,
         "confirmed"
       );
+      console.log("meow")
+
+      const initializeUserLedgerEvent = await initializeUserLedgerPromise;
+      console.log("=====================================initialize user ledger event for", initializeUserLedgerEvent.user.toBase58());
 
       const info12 = await program.account.userPrivateLedger.fetch(
         userLedgerPDA
@@ -707,9 +733,13 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       console.log("User ledger initialized");
 
+      console.log("entering deposit to ledger");
+
+      const userLedgerDepositedPromise = awaitEvent("userLedgerDepositedEvent");
 
       await program.methods
         .depositToLedger(
+          Array.from(User1PublicKey),
           new BN(100),
           true,
           UpdateLedgerDepositComputationOffset
@@ -752,8 +782,24 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         program.programId,
         "confirmed"
       );
-
       console.log("Tokens deposited to ledger");
+
+      const userLedgerDepositedEvent = await userLedgerDepositedPromise;
+
+    
+      const userLedgerDepositedEventNonce = Uint8Array.from(
+        userLedgerDepositedEvent.balanceNonce.toArray("le", 16)
+      );
+
+      let userBalances = User1Cipher.decrypt(
+        [...userLedgerDepositedEvent.encryptedBalances],
+        userLedgerDepositedEventNonce
+      );
+      console.log("userBalances===============>", userBalances);
+      // expect(userBalances[0]).to.equal(new BN(100).toString());
+      // expect(userBalances[1]).to.equal(new BN(100).toString());
+      // expect(userBalances[2]).to.equal(new BN(0).toString());
+      // expect(userBalances[3]).to.equal(new BN(0).toString());
 
       // check if the vault does have the correct amount of tokens
       const vaultInfo = await getAccount(provider.connection, baseVaultPDA);
@@ -772,7 +818,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       // 3. Read initial nonce
       const before = await getOrderBookState(program);
       const initialNonce = before.orderBookNonce;
-
 
       const orderId = 12;
 
@@ -827,21 +872,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           submitOrderComputationOffset
         ).toBase58()
       );
-
-      // Get MXE public key
-      mxePublicKey = await getMXEPublicKeyWithRetry(
-        provider as anchor.AnchorProvider,
-        program.programId
-      );
-
-      // Generate encryption keys for User1
-      const User1PrivateKey = x25519.utils.randomSecretKey();
-      const User1PublicKey = x25519.getPublicKey(User1PrivateKey);
-      const User1SharedSecret = x25519.getSharedSecret(
-        User1PrivateKey,
-        mxePublicKey
-      );
-      const User1Cipher = new RescueCipher(User1SharedSecret);
 
       const User1Nonce = randomBytes(16);
       const User1Ciphertext = User1Cipher.encrypt(
@@ -1022,7 +1052,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("  - Submit 1 buy at 105 USDC/SOL");
       console.log("  - Submit 1 sell at 95 USDC/SOL");
 
-
       // const User1Cipher = new RescueCipher(User1SharedSecret);
 
       // let amount1 = BigInt(100);
@@ -1040,7 +1069,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       // let baseVaultPDA = await deriveVaultPDA(baseMint, program.programId);
       // let orderAccountPDA = await deriveOrderAccountPDA(new anchor.BN(order1Id), program.programId);
       // let userLedgerPDA = await deriveUserLedgerPDA(user1.publicKey, program.programId);
-
 
       // const buyOrder = await program.methods
       // .submitOrder(
@@ -1086,8 +1114,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //   program.programId,
       //   "confirmed"
       // );
-
-
 
       // const User2Cipher = new RescueCipher(User1SharedSecret);
 
@@ -1144,8 +1170,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       // })
       // .signers([user1])
       // .rpc({ commitment: "confirmed" });
-
-
 
       // await awaitComputationFinalization(
       //   provider,
@@ -1272,4 +1296,3 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     });
   });
 });
-

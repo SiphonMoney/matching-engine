@@ -59,7 +59,7 @@ pub fn submit_order(
         Argument::Account(
             ctx.accounts.orderbook_state.key(),
             8 + 32,      // Offset: discriminator(8) + authority(32) = 40
-            52 * 32,     // Size: 52 chunks × 32 bytes = 1312 bytes
+            42 * 32,     // Size: 52 chunks × 32 bytes = 1312 bytes
         ),
 
         Argument::PlaintextU64(order_id),

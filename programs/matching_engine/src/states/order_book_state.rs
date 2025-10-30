@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 #[derive(InitSpace)]
 pub struct OrderBookState {
     pub authority: Pubkey,              // 32
-    pub orderbook_data: [[u8; 32]; 52], // 1312
+    pub orderbook_data: [[u8; 32]; 42], // 1312
     pub orderbook_nonce: u128,          // 16
     pub backend_pubkey: [u8; 32],       // 32
     pub base_mint: Pubkey,              // 32
