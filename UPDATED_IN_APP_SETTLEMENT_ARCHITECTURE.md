@@ -13,7 +13,6 @@
   - [8. Account Relationships](#8-account-relationships)
   - [9. Data Privacy Levels](#9-data-privacy-levels)
   - [Summary: Key Design Decisions](#summary-key-design-decisions)
-  - [Next Steps to Fix](#next-steps-to-fix)
 
 ---
 
@@ -200,13 +199,13 @@ sequenceDiagram
     
     FE->>Program: submitOrder(<br/>  encrypted_amount[32],<br/>  encrypted_price[32],<br/>  user_pubkey[32],<br/>  order_type=0,<br/>  order_id=12,<br/>  order_nonce=123<br/>)
     
-    Note over Program: ⚠️ KEY ISSUE: How to pass encrypted struct?
+    <!-- Note over Program: ⚠️ KEY ISSUE: How to pass encrypted struct? -->
     
     Program->>Program: Create OrderAccount PDA<br/>seeds = [b"order", order_id]
     
     Program->>MXE: Queue submit_order<br/>Args: [<br/>  user_sensitive (Enc<Shared, UserSensitiveData>),<br/>  user_ledger (Enc<Mxe, &Balances>),<br/>  orderbook (Enc<Mxe, &OrderBook>),<br/>  order_id=12,<br/>  order_type=0,<br/>  timestamp<br/>]
     
-    Note over Program,MXE: 🔴 CURRENT PROBLEM:<br/>Passing Argument::EncryptedU64(amount)<br/>+ Argument::EncryptedU64(price)<br/>doesn't match Enc<Shared, Struct>
+    <!-- Note over Program,MXE: 🔴 CURRENT PROBLEM:<br/>Passing Argument::EncryptedU64(amount)<br/>+ Argument::EncryptedU64(price)<br/>doesn't match Enc<Shared, Struct> -->
     
     MXE->>Circuit: Execute submit_order
     
@@ -592,33 +591,3 @@ graph LR
    - OR: Change circuit to accept two separate `Enc<Shared, u64>` parameters
 
 ---
-
-## Next Steps to Fix
-
-1. **Store encrypted {amount, price} in OrderAccount BEFORE submitting to MPC**
-2. **Pass by reference using `Argument::Account`**
-3. **Or change circuit signature to accept separate encrypted values**
-
-Example fix:
-```rust
-// In submit_order instruction:
-// 1. Store encrypted data in OrderAccount first
-ctx.accounts.order_account.encrypted_sensitive_data[0] = amount;
-ctx.accounts.order_account.encrypted_sensitive_data[1] = price;
-ctx.accounts.order_account.user_enc_pubkey = user_pubkey;
-ctx.accounts.order_account.sensitive_nonce = order_nonce;
-
-// 2. Pass by reference
-let args = vec![
-    Argument::ArcisPubkey(user_pubkey),
-    Argument::PlaintextU128(order_nonce),
-    Argument::Account(
-        ctx.accounts.order_account.key(),
-        8 + 32, // offset to encrypted_sensitive_data
-        64,     // size: 2 × 32 bytes
-    ),
-    // ... rest of arguments
-];
-```
-
-This matches the blackjack pattern where `Enc<Shared, Hand>` is stored on-chain and passed by reference!
