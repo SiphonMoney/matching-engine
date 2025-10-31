@@ -9,7 +9,6 @@ use arcium_client::idl::arcium::types::CallbackAccount;
 use crate::UpdateLedgerDepositCallback;
 use crate::COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT;
 use anchor_spl::associated_token::AssociatedToken;
-const VAULT_SEED: &[u8] = b"vault";
 
 
 use anchor_spl::token::{ Token, TokenAccount};
