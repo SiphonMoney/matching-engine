@@ -44,7 +44,6 @@ pub struct InitOrderBookCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
-
 #[init_computation_definition_accounts("init_user_ledger", payer)]
 #[derive(Accounts)]
 pub struct InitializeUserLedgerCompDef<'info> {
@@ -73,10 +72,23 @@ pub struct InitUpdateLedgerDepositCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
-
 #[init_computation_definition_accounts("update_ledger_withdraw_verify", payer)]
 #[derive(Accounts)]
 pub struct InitUpdateLedgerWithdrawVerifyCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    /// CHECK: comp_def_account, checked by the arcium program.
+    #[account(mut)]
+    pub comp_def_account: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+#[init_computation_definition_accounts("execute_settlement", payer)]
+#[derive(Accounts)]
+pub struct InitExecuteSettlementCompDef<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(mut, address = derive_mxe_pda!())]

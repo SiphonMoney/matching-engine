@@ -532,4 +532,31 @@ mod circuits {
 
         (ledger.owner.from_arcis(balances), possible.reveal())
     }
+
+    #[instruction]
+    pub fn execute_settlement(
+        user1_ledger: Enc<Shared, &Balances>,
+        user2_ledger: Enc<Shared, &Balances>,
+        execution_price: u64,
+        is_base: u8,
+    ) -> (
+        Enc<Shared, Balances>,
+        Enc<Shared, Balances>,
+    ) {
+        let mut user1_balances = *(user1_ledger.to_arcis());
+        let mut user2_balances = *(user2_ledger.to_arcis());
+
+        if is_base == 0 {
+            user1_balances.base_available -= execution_price;
+            user2_balances.base_available += execution_price;
+        } else {
+            user1_balances.quote_available -= execution_price;
+            user2_balances.quote_available += execution_price;
+        }
+
+        (
+            user1_ledger.owner.from_arcis(user1_balances), 
+            user2_ledger.owner.from_arcis(user2_balances)
+        )
+    }
 }

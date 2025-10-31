@@ -3,8 +3,6 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::token::Mint;
 use anchor_spl::associated_token::AssociatedToken;
 
-
-
 pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
     let cpi_accounts = token::Transfer {
         from: ctx.accounts.vault.to_account_info(),
@@ -22,10 +20,10 @@ pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Resu
 
     token::transfer(cpi_context, amount)?;
 
-    // emit!(WithdrawEvent {
-    //     user: ctx.accounts.user.key(),
-    //     amount,
-    // });
+    emit!(WithdrawEvent {
+        user: ctx.accounts.user.key(),
+        amount,
+    });
     Ok(())
 }
 

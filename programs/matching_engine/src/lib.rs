@@ -8,8 +8,9 @@ const COMP_DEF_OFFSET_INIT_ORDER_BOOK: u32 = comp_def_offset("init_order_book");
 const COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT: u32 = comp_def_offset("update_ledger_deposit");
 const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY: u32 =
     comp_def_offset("update_ledger_withdraw_verify");
-const COMP_DEF_OFFSET_UPDATE_SETTLEMENT: u32 = comp_def_offset("update_settlement");
+// const COMP_DEF_OFFSET_UPDATE_SETTLEMENT: u32 = comp_def_offset("update_settlement");
 const COMP_DEF_OFFSET_INIT_USER_LEDGER: u32 = comp_def_offset("init_user_ledger");
+const COMP_DEF_OFFSET_EXECUTE_SETTLEMENT: u32 = comp_def_offset("execute_settlement");
 declare_id!("DQ5MR2aPD9sPBN9ukVkhwrAn8ADxpkAE5AHUnXxKEvn1");
 
 pub mod instructions;
@@ -27,6 +28,11 @@ pub mod matching_engine {
     use crate::errors::ErrorCode;
 
     pub fn init_user_ledger_comp_def(ctx: Context<InitializeUserLedgerCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        Ok(())
+    }
+
+    pub fn init_execute_settlement_comp_def(ctx: Context<InitExecuteSettlementCompDef>) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
         Ok(())
     }
@@ -179,6 +185,18 @@ pub mod matching_engine {
         process_match_orders_result(ctx, output)
     }
 
+    pub fn execute_settlement(
+        ctx: Context<ExecuteSettlement>,
+        user1_enc_pubkey: [u8; 32],
+        user2_enc_pubkey: [u8; 32],
+        execution_price: u64,
+        is_base: bool,
+        computation_offset: u64,
+    ) -> Result<()> {
+        instructions::execute_settlement(ctx, user1_enc_pubkey, user2_enc_pubkey, execution_price, is_base, computation_offset)?;
+        Ok(())
+    }
+
     #[inline(never)]
     pub fn process_match_orders_result(
         ctx: Context<MatchOrdersCallback>,
@@ -240,6 +258,32 @@ pub mod matching_engine {
         process_submit_order_result(ctx, output)
     }
 
+    pub fn execute_settlement_callback(
+        ctx: Context<ExecuteSettlementCallback>,
+        output: ComputationOutputs<ExecuteSettlementOutput>,
+    ) -> Result<()> {
+        match &output {
+            ComputationOutputs::Success(ExecuteSettlementOutput { field_0 }) => {
+                let user1_ledger_enc = &field_0.field_0;
+                let user2_ledger_enc = &field_0.field_1;
+
+                let user1_ledger = &mut ctx.accounts.user1_ledger;
+                user1_ledger.balance_nonce = user1_ledger_enc.nonce;
+                user1_ledger.encrypted_balances = user1_ledger_enc.ciphertexts;
+                user1_ledger.last_update = Clock::get()?.unix_timestamp;
+
+                let user2_ledger = &mut ctx.accounts.user2_ledger;
+                user2_ledger.balance_nonce = user2_ledger_enc.nonce;
+                user2_ledger.encrypted_balances = user2_ledger_enc.ciphertexts;
+                user2_ledger.last_update = Clock::get()?.unix_timestamp;
+
+                Ok(())
+            }
+            _ => Err(ErrorCode::AbortedComputation.into()),
+        }
+    }
+
+
     #[inline(never)]
     pub fn process_submit_order_result(
         ctx: Context<SubmitOrderCallback>,
@@ -295,15 +339,6 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn execute_settlement(
-        ctx: Context<ExecuteSettlement>,
-        match_id: u64,
-        quantity: u64,
-        execution_price: u64,
-    ) -> Result<()> {
-        instructions::execute_settlement(ctx, match_id, quantity, execution_price)?;
-        Ok(())
-    }
 
     pub fn initialize_user_ledger(
         ctx: Context<InitializeUserLedger>,
@@ -465,6 +500,21 @@ pub struct InitUserLedgerCallback<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
     pub user_ledger: Account<'info, UserPrivateLedger>,
+}
+
+#[callback_accounts("execute_settlement")]
+#[derive(Accounts)]
+pub struct ExecuteSettlementCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_EXECUTE_SETTLEMENT))]
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
+    #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
+    /// CHECK: instructions_sysvar
+    pub instructions_sysvar: AccountInfo<'info>,
+    #[account(mut)]
+    pub user1_ledger: Account<'info, UserPrivateLedger>,
+    #[account(mut)]
+    pub user2_ledger: Account<'info, UserPrivateLedger>,
 }
 
 #[callback_accounts("update_ledger_withdraw_verify")]
