@@ -6,7 +6,8 @@ const COMP_DEF_OFFSET_MATCH_ORDERS: u32 = comp_def_offset("match_orders");
 const COMP_DEF_OFFSET_SUBMIT_ORDER: u32 = comp_def_offset("submit_order");
 const COMP_DEF_OFFSET_INIT_ORDER_BOOK: u32 = comp_def_offset("init_order_book");
 const COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT: u32 = comp_def_offset("update_ledger_deposit");
-const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW: u32 = comp_def_offset("update_ledger_withdraw");
+const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY: u32 =
+    comp_def_offset("update_ledger_withdraw_verify");
 const COMP_DEF_OFFSET_UPDATE_SETTLEMENT: u32 = comp_def_offset("update_settlement");
 const COMP_DEF_OFFSET_INIT_USER_LEDGER: u32 = comp_def_offset("init_user_ledger");
 declare_id!("DQ5MR2aPD9sPBN9ukVkhwrAn8ADxpkAE5AHUnXxKEvn1");
@@ -25,19 +26,39 @@ pub mod matching_engine {
     use super::*;
     use crate::errors::ErrorCode;
 
-
     pub fn init_user_ledger_comp_def(ctx: Context<InitializeUserLedgerCompDef>) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
         Ok(())
     }
 
-    pub fn init_update_ledger_deposit_comp_def(ctx: Context<InitUpdateLedgerDepositCompDef>) -> Result<()> {
+    pub fn init_update_ledger_withdraw_verify_comp_def(
+        ctx: Context<InitUpdateLedgerWithdrawVerifyCompDef>,
+    ) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
         Ok(())
     }
 
-    pub fn deposit_to_ledger(ctx: Context<DepositToLedger>, user_pubkey: [u8; 32], amount: u64, is_base_token: bool, computation_offset: u64) -> Result<()> {
-        instructions::deposit_to_ledger(ctx, user_pubkey, amount, is_base_token, computation_offset)?;
+    pub fn init_update_ledger_deposit_comp_def(
+        ctx: Context<InitUpdateLedgerDepositCompDef>,
+    ) -> Result<()> {
+        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        Ok(())
+    }
+
+    pub fn deposit_to_ledger(
+        ctx: Context<DepositToLedger>,
+        user_enc_pubkey: [u8; 32],
+        amount: u64,
+        is_base_token: bool,
+        computation_offset: u64,
+    ) -> Result<()> {
+        instructions::deposit_to_ledger(
+            ctx,
+            user_enc_pubkey,
+            amount,
+            is_base_token,
+            computation_offset,
+        )?;
         Ok(())
     }
 
@@ -53,10 +74,6 @@ pub mod matching_engine {
 
     pub fn init_order_book_comp_def(ctx: Context<InitOrderBookCompDef>) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
-        Ok(())
-    }
-    pub fn initialize_vault(ctx: Context<InitializeUserVault>) -> Result<()> {
-        instructions::initialize_user_vault(ctx)?;
         Ok(())
     }
 
@@ -125,16 +142,12 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn deposit_to_vault(ctx: Context<DepositToVault>, amount: u64) -> Result<()> {
-        instructions::deposit_to_vault(ctx, amount)?;
-        Ok(())
-    }
 
     pub fn submit_order(
         ctx: Context<SubmitOrder>,
         amount: [u8; 32],
         price: [u8; 32],
-        user_pubkey: [u8; 32],
+        user_enc_pubkey: [u8; 32],
         order_type: u8,
         computation_offset: u64,
         order_id: u64,
@@ -144,7 +157,7 @@ pub mod matching_engine {
             ctx,
             amount,
             price,
-            user_pubkey,
+            user_enc_pubkey,
             order_type,
             computation_offset,
             order_id,
@@ -176,13 +189,13 @@ pub mod matching_engine {
                 let orderbook_enc = &field_0.field_0;
                 let matches_enc = &field_0.field_1;
                 let num_matches = field_0.field_2;
-                
+
                 // Update orderbook
 
                 let orderbook_state = &mut ctx.accounts.orderbook_state;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                
+
                 if num_matches > 0 {
                     // Create MatchResult accounts for each match
                     // The encrypted matches will be decrypted by backend
@@ -201,7 +214,7 @@ pub mod matching_engine {
                         match4 = matches_enc.ciphertexts[15..20].try_into().unwrap();
                     }
                     ctx.accounts.orderbook_state.total_matches += num_matches as u64;
-                    
+
                     emit!(MatchesFoundEvent {
                         num_matches,
                         match1,
@@ -212,7 +225,7 @@ pub mod matching_engine {
                         timestamp: Clock::get()?.unix_timestamp,
                     });
                 }
-                
+
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),
@@ -238,40 +251,47 @@ pub mod matching_engine {
                 let ledger_enc = &field_0.field_1;
                 let status_enc = &field_0.field_2;
                 let success = field_0.field_3;
-                
+
                 // Update orderbook
                 let orderbook_state = &mut ctx.accounts.orderbook_state;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
                 ctx.accounts.orderbook_state.total_orders_processed += 1;
-                
+
                 // Update user ledger
                 ctx.accounts.user_ledger.balance_nonce = ledger_enc.nonce;
                 for i in 0..4 {
                     ctx.accounts.user_ledger.encrypted_balances[i] = ledger_enc.ciphertexts[i];
                 }
                 ctx.accounts.user_ledger.last_update = Clock::get()?.unix_timestamp;
-                
+
                 // Update order account
                 ctx.accounts.order_account.order_nonce = status_enc.nonce;
                 for i in 0..7 {
                     ctx.accounts.order_account.encrypted_order[i] = status_enc.ciphertexts[i];
                 }
-                
+
                 emit!(OrderSubmittedEvent {
                     order_id: ctx.accounts.order_account.order_id,
                     user: ctx.accounts.order_account.user,
                     success,
                     timestamp: Clock::get()?.unix_timestamp,
                 });
-                
+
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),
         }
     }
-    pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
-        instructions::withdraw_from_vault(ctx, amount)?;
+
+    pub fn withdraw_from_ledger_verify(
+        ctx: Context<WithdrawFromLedgerVerify>,
+        user_enc_pubkey: [u8; 32],
+        amount: u64,
+        is_base_token: bool,
+        computation_offset: u64,
+    ) -> Result<()> {
+        instructions::withdraw_from_ledger_verify(ctx, user_enc_pubkey, amount, is_base_token, computation_offset)?;
         Ok(())
     }
 
@@ -285,8 +305,13 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn initialize_user_ledger(ctx: Context<InitializeUserLedger>, user_pubkey: [u8; 32], user_nonce: u128, computation_offset: u64) -> Result<()> {
-        instructions::initialize_user_ledger(ctx, user_pubkey, user_nonce, computation_offset)?;
+    pub fn initialize_user_ledger(
+        ctx: Context<InitializeUserLedger>,
+        user_enc_pubkey: [u8; 32],
+        user_nonce: u128,
+        computation_offset: u64,
+    ) -> Result<()> {
+        instructions::initialize_user_ledger(ctx, user_enc_pubkey, user_nonce, computation_offset)?;
         Ok(())
     }
 
@@ -319,7 +344,6 @@ pub mod matching_engine {
         }
     }
 
-
     #[arcium_callback(encrypted_ix = "init_user_ledger", network = "localnet")]
     pub fn init_user_ledger_callback(
         ctx: Context<InitUserLedgerCallback>,
@@ -328,9 +352,14 @@ pub mod matching_engine {
         process_init_user_ledger_result(ctx, output)
     }
 
-    pub fn process_init_user_ledger_result(ctx: Context<InitUserLedgerCallback>, output: ComputationOutputs<InitUserLedgerOutput>) -> Result<()> {
+    pub fn process_init_user_ledger_result(
+        ctx: Context<InitUserLedgerCallback>,
+        output: ComputationOutputs<InitUserLedgerOutput>,
+    ) -> Result<()> {
         match &output {
-            ComputationOutputs::Success(InitUserLedgerOutput { field_0: ledger_enc }) => {
+            ComputationOutputs::Success(InitUserLedgerOutput {
+                field_0: ledger_enc,
+            }) => {
                 let ledger = &mut ctx.accounts.user_ledger;
                 ledger.balance_nonce = ledger_enc.nonce;
                 ledger.encrypted_balances = ledger_enc.ciphertexts;
@@ -349,8 +378,42 @@ pub mod matching_engine {
         }
     }
 
-}
+    pub fn update_ledger_withdraw_verify_callback(
+        ctx: Context<UpdateLedgerWithdrawVerifyCallback>,
+        output: ComputationOutputs<UpdateLedgerWithdrawVerifyOutput>,
+    ) -> Result<()> {
+        match &output {
+            ComputationOutputs::Success(UpdateLedgerWithdrawVerifyOutput { field_0 }) => {
+                let ledger_enc = &field_0.field_0;
+                let success = &field_0.field_1;
 
+                if *success {
+                    let ledger = &mut ctx.accounts.user_ledger;
+                    ledger.balance_nonce = ledger_enc.nonce;
+                    ledger.encrypted_balances = ledger_enc.ciphertexts;
+                    ledger.last_update = Clock::get()?.unix_timestamp;
+
+                    emit!(UserLedgerWithdrawVerifiedSuccessEvent {
+                        user: ledger.owner,
+                        balance_nonce: ledger.balance_nonce,
+                        encrypted_balances: ledger.encrypted_balances,
+                        last_update: ledger.last_update,
+                    });
+
+                    msg!("User ledger updated after withdraw verify");
+                    Ok(())
+                } else {
+                    emit!(UserLedgerWithdrawVerifiedFailedEvent {
+                        user: ctx.accounts.user_ledger.owner,
+                    });
+                    msg!("User ledger updated after withdraw verify");
+                    Ok(())
+                }
+            }
+            _ => Err(ErrorCode::AbortedComputation.into()),
+        }
+    }
+}
 #[event]
 pub struct OrderProcessedEvent {
     pub order_id: u64,
@@ -372,7 +435,6 @@ pub struct MatchOrdersCallback<'info> {
     #[account(mut)]
     pub orderbook_state: Box<Account<'info, OrderBookState>>,
 }
-
 
 #[callback_accounts("submit_order")]
 #[derive(Accounts)]
@@ -405,6 +467,18 @@ pub struct InitUserLedgerCallback<'info> {
     pub user_ledger: Account<'info, UserPrivateLedger>,
 }
 
+#[callback_accounts("update_ledger_withdraw_verify")]
+#[derive(Accounts)]
+pub struct UpdateLedgerWithdrawVerifyCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY))]
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
+    #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
+    /// CHECK: instructions_sysvar
+    pub instructions_sysvar: AccountInfo<'info>,
+    #[account(mut)]
+    pub user_ledger: Account<'info, UserPrivateLedger>,
+}
 #[queue_computation_accounts("init_order_book", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64)]
@@ -524,4 +598,17 @@ pub struct UserLedgerDepositedEvent {
     pub balance_nonce: u128,
     pub encrypted_balances: [[u8; 32]; 4],
     pub last_update: i64,
+}
+
+#[event]
+pub struct UserLedgerWithdrawVerifiedSuccessEvent {
+    pub user: Pubkey,
+    pub balance_nonce: u128,
+    pub encrypted_balances: [[u8; 32]; 4],
+    pub last_update: i64,
+}
+
+#[event]
+pub struct UserLedgerWithdrawVerifiedFailedEvent {
+    pub user: Pubkey,
 }

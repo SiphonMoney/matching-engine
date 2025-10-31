@@ -612,40 +612,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       );
       const [vaultAuthorityPDA] = deriveVaultAuthorityPDA(program.programId);
 
-      console.log("before initialize vault--------------------");
-      // first initialize the vault
-      // await program.methods
-      //   .initializeVault()
-      //   .accountsPartial({
-      //     user: user1.publicKey,
-      //     mint: baseMint,
-      //     vault: baseVaultPDA,
-      //     vaultState: vaultStatePDA,
-      //     vaultAuthority: vaultAuthorityPDA,
-      //     systemProgram: SystemProgram.programId,
-      //   })
-      //   .signers([user1])
-      //   .rpc({ commitment: "confirmed" });
-
-      console.log("Vault initialized");
-
-      console.log("user1", user1.publicKey.toBase58());
-      console.log("baseMint", baseMint.toBase58());
-      console.log("user1token1ATA", user1token1ATA.toBase58());
-
-      // then deposit to the vault
-      await program.methods
-        .depositToVault(new BN(100))
-        .accountsPartial({
-          user: user1.publicKey,
-          userTokenAccount: user1token1ATA,
-          vault: baseVaultPDA,
-        })
-        .signers([user1])
-        .rpc({ commitment: "confirmed" });
-
-      console.log("Tokens deposited to vault");
-
       const [userLedgerPDA] = deriveUserLedgerPDA(
         user1.publicKey,
         program.programId
@@ -724,7 +690,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("meow")
 
       const initializeUserLedgerEvent = await initializeUserLedgerPromise;
-      console.log("=====================================initialize user ledger event for", initializeUserLedgerEvent.user.toBase58());
+      console.log("initialized user ledger event for", initializeUserLedgerEvent.user.toBase58());
 
       const info12 = await program.account.userPrivateLedger.fetch(
         userLedgerPDA

@@ -20,7 +20,6 @@ pub fn initialize_user_ledger(
     let ledger = &mut ctx.accounts.user_ledger;
 
     ledger.owner = ctx.accounts.user.key();
-    // ledger.encrypted_balances = [[0u8; 32]; 4];  // Will be encrypted zeros
     ledger.balance_nonce = 0;
     ledger.last_update = Clock::get()?.unix_timestamp;
     ledger.bump = ctx.bumps.user_ledger;
@@ -29,7 +28,7 @@ pub fn initialize_user_ledger(
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     let args = vec![
         Argument::ArcisPubkey(user_pubkey),
-        Argument::PlaintextU128(user_nonce), // Initial nonce
+        Argument::PlaintextU128(user_nonce),
     ];
 
     queue_computation(
@@ -88,7 +87,6 @@ pub struct InitializeUserLedger<'info> {
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
 
-    
     #[account(
         init,
         payer = user,

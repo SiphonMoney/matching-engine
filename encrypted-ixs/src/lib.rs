@@ -503,11 +503,11 @@ mod circuits {
 
 
     #[instruction]
-    pub fn update_ledger_withdraw(
-        ledger: Enc<Mxe, Balances>,
+    pub fn update_ledger_withdraw_verify(
+        ledger: Enc<Shared, Balances>,
         amount: u64,
         is_base: u8,
-    ) -> (Enc<Mxe, Balances>, bool) {
+    ) -> (Enc<Shared, Balances>, bool) {
         let mut balances = ledger.to_arcis();
 
         let available = if is_base == 0 {
