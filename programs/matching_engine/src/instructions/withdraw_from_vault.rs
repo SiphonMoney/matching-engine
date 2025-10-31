@@ -49,11 +49,7 @@ pub struct WithdrawFromVault<'info> {
     #[account(mut)]
     pub vault: Account<'info, TokenAccount>,
     
-    #[account(
-        mut,
-        associated_token::authority = user,
-        associated_token::mint = mint,
-    )]
+    #[account(mut)]
     pub user_token_account: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }

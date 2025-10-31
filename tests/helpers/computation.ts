@@ -345,3 +345,68 @@ export async function updateLedgerDepositCompDef(
 
   return sig;
 }
+
+/**
+ * Initialize withdraw_from_ledger_verify computation definition
+ */
+export async function withdrawFromLedgerVerifyCompDef(
+  program: Program<MatchingEngine>,
+  owner: Keypair,
+  uploadRawCircuit: boolean = false,
+  offchainSource: boolean = false
+): Promise<string> {
+  const baseSeedCompDefAcc = getArciumAccountBaseSeed(
+    "ComputationDefinitionAccount"
+  );
+  const offset = getCompDefAccOffset("update_ledger_withdraw_verify");
+
+  const compDefPDA = PublicKey.findProgramAddressSync(
+    [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
+    getArciumProgAddress()
+  )[0];
+
+  console.log("Update ledger withdraw verify comp def PDA:", compDefPDA.toBase58());
+
+  const sig = await program.methods
+    .initUpdateLedgerWithdrawVerifyCompDef()
+    .accounts({
+      compDefAccount: compDefPDA,
+      payer: owner.publicKey,
+      mxeAccount: getMXEAccAddress(program.programId),
+    })
+    .signers([owner])
+    .rpc({
+      commitment: "confirmed",
+    });
+
+  console.log("Init update_ledger_withdraw_verify computation definition tx:", sig);
+
+  const provider = program.provider as anchor.AnchorProvider;
+
+  if (uploadRawCircuit) {
+    const rawCircuit = fs.readFileSync("build/update_ledger_withdraw_verify.arcis");
+    await uploadCircuit(
+      provider,
+      "update_ledger_withdraw_verify",
+      program.programId,
+      rawCircuit,
+      true
+    );
+  } else if (!offchainSource) {
+    const finalizeTx = await buildFinalizeCompDefTx(
+      provider,
+      Buffer.from(offset).readUInt32LE(),
+      program.programId
+    );
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    finalizeTx.recentBlockhash = latestBlockhash.blockhash;
+    finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+
+    finalizeTx.sign(owner);
+
+    await provider.sendAndConfirm(finalizeTx);
+  }
+
+  return sig;
+}

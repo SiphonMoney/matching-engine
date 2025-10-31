@@ -7,7 +7,7 @@ use anchor_spl::token::{self, Transfer};
 use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
 use crate::UpdateLedgerWithdrawVerifyCallback;
-use crate::COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT;
+use crate::COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY;
 use anchor_spl::associated_token::AssociatedToken;
 
 
@@ -57,7 +57,7 @@ pub fn withdraw_from_ledger_verify(
 
 }
 
-#[queue_computation_accounts("update_ledger_deposit", user)]
+#[queue_computation_accounts("update_ledger_withdraw_verify", user)]
 #[derive(Accounts)]
 #[instruction(
     user_enc_pubkey: [u8; 32],
@@ -94,7 +94,7 @@ pub struct WithdrawFromLedgerVerify<'info> {
     /// CHECK: computation_account
     pub computation_account: UncheckedAccount<'info>,
     
-    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT))]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY))]
     pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
     
     #[account(mut, address = derive_cluster_pda!(mxe_account))]

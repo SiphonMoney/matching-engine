@@ -32,7 +32,9 @@ pub mod matching_engine {
         Ok(())
     }
 
-    pub fn init_execute_settlement_comp_def(ctx: Context<InitExecuteSettlementCompDef>) -> Result<()> {
+    pub fn init_execute_settlement_comp_def(
+        ctx: Context<InitExecuteSettlementCompDef>,
+    ) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
         Ok(())
     }
@@ -148,7 +150,6 @@ pub mod matching_engine {
         Ok(())
     }
 
-
     pub fn submit_order(
         ctx: Context<SubmitOrder>,
         amount: [u8; 32],
@@ -193,7 +194,14 @@ pub mod matching_engine {
         is_base: bool,
         computation_offset: u64,
     ) -> Result<()> {
-        instructions::execute_settlement(ctx, user1_enc_pubkey, user2_enc_pubkey, execution_price, is_base, computation_offset)?;
+        instructions::execute_settlement(
+            ctx,
+            user1_enc_pubkey,
+            user2_enc_pubkey,
+            execution_price,
+            is_base,
+            computation_offset,
+        )?;
         Ok(())
     }
 
@@ -283,7 +291,6 @@ pub mod matching_engine {
         }
     }
 
-
     #[inline(never)]
     pub fn process_submit_order_result(
         ctx: Context<SubmitOrderCallback>,
@@ -335,7 +342,13 @@ pub mod matching_engine {
         is_base_token: bool,
         computation_offset: u64,
     ) -> Result<()> {
-        instructions::withdraw_from_ledger_verify(ctx, user_enc_pubkey, amount, is_base_token, computation_offset)?;
+        instructions::withdraw_from_ledger_verify(
+            ctx,
+            user_enc_pubkey,
+            amount,
+            is_base_token,
+            computation_offset,
+        )?;
         Ok(())
     }
 
@@ -436,6 +449,9 @@ pub mod matching_engine {
                     ledger.encrypted_balances = ledger_enc.ciphertexts;
                     ledger.last_update = Clock::get()?.unix_timestamp;
 
+
+                    msg!("User ledger updated after withdraw verify");
+
                     emit!(UserLedgerWithdrawVerifiedSuccessEvent {
                         user: ledger.owner,
                         balance_nonce: ledger.balance_nonce,
@@ -443,7 +459,8 @@ pub mod matching_engine {
                         last_update: ledger.last_update,
                     });
 
-                    msg!("User ledger updated after withdraw verify");
+                    msg!("event emitted===============================================");
+
                     Ok(())
                 } else {
                     emit!(UserLedgerWithdrawVerifiedFailedEvent {
