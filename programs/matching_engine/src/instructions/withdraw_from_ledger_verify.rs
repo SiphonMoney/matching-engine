@@ -55,30 +55,6 @@ pub fn withdraw_from_ledger_verify(
 
     Ok(())
 
-    
-    // // 2. the callback will emit an event confirming if withdrawl is possible and 
-    // // if possible then the cranker will prepare 
-    // let cpi_accounts = token::Transfer {
-    //     from: ctx.accounts.vault.to_account_info(),
-    //     to: ctx.accounts.user_token_account.to_account_info(),
-    //     authority: ctx.accounts.vault_authority.to_account_info(),
-    // };
-
-    // let signer_seeds: &[&[&[u8]]] = &[&[
-    //     b"vault_authority", 
-    //     &[ctx.bumps.vault_authority], 
-    // ]];
-
-    // let cpi_context = CpiContext::new_with_signer(
-    //     ctx.accounts.token_program.to_account_info(),
-    //     cpi_accounts,
-    //     signer_seeds,
-    // );
-
-    // token::transfer(cpi_context, amount)?;
-    // msg!("Withdrew {} tokens from ledger", amount);
-    
-    // Ok(())
 }
 
 #[queue_computation_accounts("update_ledger_deposit", user)]

@@ -12,9 +12,8 @@ use arcium_client::idl::arcium::types::CallbackAccount;
 use crate::ID;
 use crate::ID_CONST;
 
-const SETTLEMENT_BOT_PUBKEY: Pubkey = pubkey!("11111111111111111111111111111111");
-// not the vault authority but a separate authority that can only execute settlements.
-// the vault authority is the one that can execute deposits and withdrawals which is a pda derived from the main program.
+// public key for the settlement/cranker bot
+const CRANKER_BOT_PUBKEY: Pubkey = pubkey!("8wJE7H7svhpz1Jnzbne3YErWFVeWNWGRbAkDQ8xeixoY");
 
 pub fn execute_settlement(
     ctx: Context<ExecuteSettlement>,
@@ -71,7 +70,7 @@ pub fn execute_settlement(
 pub struct ExecuteSettlement<'info> {
     #[account(
         mut,
-        address = SETTLEMENT_BOT_PUBKEY,
+        address = CRANKER_BOT_PUBKEY,
     )]
     pub user: Signer<'info>,
     #[account(

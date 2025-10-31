@@ -3,8 +3,10 @@ use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use anchor_spl::token::Mint;
 use anchor_spl::associated_token::AssociatedToken;
 
-pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Result<()> {
-    let cpi_accounts = token::Transfer {
+const CRANKER_BOT_PUBKEY: Pubkey = pubkey!("8wJE7H7svhpz1Jnzbne3YErWFVeWNWGRbAkDQ8xeixoY");
+
+pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64, user: Pubkey) -> Result<()> {
+    let cpi_accounts = Transfer {
         from: ctx.accounts.vault.to_account_info(),
         to: ctx.accounts.user_token_account.to_account_info(),
         authority: ctx.accounts.vault_authority.to_account_info(),
@@ -21,16 +23,20 @@ pub fn withdraw_from_vault(ctx: Context<WithdrawFromVault>, amount: u64) -> Resu
     token::transfer(cpi_context, amount)?;
 
     emit!(WithdrawEvent {
-        user: ctx.accounts.user.key(),
+        user: user,
         amount,
     });
     Ok(())
 }
 
 #[derive(Accounts)]
+#[instruction(user: Pubkey)]
 pub struct WithdrawFromVault<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
+    #[account(
+        mut,
+        address = CRANKER_BOT_PUBKEY,
+    )]
+    pub payer: Signer<'info>,
     /// CHECK: PDA authority for vault
     #[account(
         seeds = [b"vault_authority"],

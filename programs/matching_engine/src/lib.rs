@@ -339,6 +339,14 @@ pub mod matching_engine {
         Ok(())
     }
 
+    pub fn withdraw_from_vault(
+        ctx: Context<WithdrawFromVault>,
+        amount: u64,
+        user: Pubkey,
+    ) -> Result<()> {
+        instructions::withdraw_from_vault(ctx, amount, user)?;
+        Ok(())
+    }
 
     pub fn initialize_user_ledger(
         ctx: Context<InitializeUserLedger>,
