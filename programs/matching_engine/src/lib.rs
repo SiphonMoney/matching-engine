@@ -421,13 +421,11 @@ pub mod matching_engine {
                 ledger.encrypted_balances = ledger_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
 
-                msg!("User ledger initialized");
                 emit!(UserLedgerInitializedEvent {
                     user: ledger.owner,
                     balance_nonce: ledger.balance_nonce,
                     last_update: ledger.last_update,
                 });
-                msg!("User ledger initialized event emitted");
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),
@@ -459,14 +457,12 @@ pub mod matching_engine {
                         last_update: ledger.last_update,
                     });
 
-                    msg!("event emitted===============================================");
 
                     Ok(())
                 } else {
                     emit!(UserLedgerWithdrawVerifiedFailedEvent {
                         user: ctx.accounts.user_ledger.owner,
                     });
-                    msg!("User ledger updated after withdraw verify");
                     Ok(())
                 }
             }
