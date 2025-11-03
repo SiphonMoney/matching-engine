@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-matching_engine = "DQ5MR2aPD9sPBN9ukVkhwrAn8ADxpkAE5AHUnXxKEvn1"
+matching_engine = "8ndLKjoaUcjDTrL6Bsw3xkyafTV87ZC5XPUgf6AFJP6N"
 
 [registry]
 url = "https://api.apr.dev"

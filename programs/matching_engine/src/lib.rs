@@ -11,7 +11,7 @@ const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY: u32 =
 // const COMP_DEF_OFFSET_UPDATE_SETTLEMENT: u32 = comp_def_offset("update_settlement");
 const COMP_DEF_OFFSET_INIT_USER_LEDGER: u32 = comp_def_offset("init_user_ledger");
 const COMP_DEF_OFFSET_EXECUTE_SETTLEMENT: u32 = comp_def_offset("execute_settlement");
-declare_id!("DQ5MR2aPD9sPBN9ukVkhwrAn8ADxpkAE5AHUnXxKEvn1");
+declare_id!("8ndLKjoaUcjDTrL6Bsw3xkyafTV87ZC5XPUgf6AFJP6N");
 
 pub mod instructions;
 pub mod states;
