@@ -29,6 +29,7 @@ import {
   getArciumProgramId,
   // getClockAccAddress,
   RescueCipher,
+  getClusterAccAddress,
 } from "@arcium-hq/client";
 import * as os from "os";
 import { expect } from "chai";
@@ -59,17 +60,56 @@ import {
   withdrawFromLedgerVerifyCompDef,
   readKpJson,
 } from "./helpers/computation";
+import { MatchingEngine } from "../target/types/matching_engine";
+import MatchingEngineIDL from "../target/idl/matching_engine.json";
+
 
 describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
+  const useDevnet = false;
+
+  const authority = readKpJson(`${os.homedir()}/.config/solana/id.json`);
+
+  let provider: anchor.AnchorProvider;
+  let program: Program<MatchingEngine>;
+  let clusterAccount: PublicKey;
+
+  if (useDevnet) {
+    // Devnet configuration
+    const connection = new anchor.web3.Connection(
+      "https://devnet.helius-rpc.com/?api-key=daa43648-936f-40e1-9303-2ea12ba55a2a", // or your preferred RPC
+      "confirmed"
+    );
+    const wallet = new anchor.Wallet(authority);
+    provider = new anchor.AnchorProvider(connection, wallet, {
+      commitment: "confirmed",
+    });
+    program = new anchor.Program<MatchingEngine>(
+      MatchingEngineIDL as anchor.Idl,
+      provider
+    );
+    clusterAccount = getClusterAccAddress(1078779259); // Use your cluster offset
+    console.log("==================================================================================================================================:", clusterAccount.toBase58());
+  } else {
+    // Local configuration
+    anchor.setProvider(anchor.AnchorProvider.env());
+    provider = anchor.getProvider() as anchor.AnchorProvider;
+    program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
+    const arciumEnv = getArciumEnv();
+    clusterAccount = arciumEnv.arciumClusterPubkey;
+    // clusterAccount = getClusterAccAddress(1078779259);
+  }
+
+
+
+
   // Configure the client to use the local cluster
-  anchor.setProvider(anchor.AnchorProvider.env());
-  const program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
-  const provider = anchor.getProvider() as anchor.AnchorProvider;
-  const arciumEnv = getArciumEnv();
+  // anchor.setProvider(anchor.AnchorProvider.env());
+  // const program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
+  // const provider = anchor.getProvider() as anchor.AnchorProvider;
+  // const arciumEnv = getArciumEnv();
 
   // TODO ; change the seeds for deriving the orderaccount pda
   // Test accounts
-  let authority: Keypair;
   let backendKeypair: Keypair;
   let backendSecretKey: Uint8Array;
   let backendPublicKey: Uint8Array;
@@ -119,24 +159,36 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     console.log("========================================\n");
 
     // Load authority from default Solana config
-    authority = readKpJson(`${os.homedir()}/.config/solana/id.json`);
     console.log("Authority:", authority.publicKey.toBase58());
 
     // Generate test accounts
     backendKeypair = Keypair.generate();
-    user1 = Keypair.generate();
+    // user1 = Keypair.generate();
+    user1 = readKpJson(`./user1.json`);
     user2 = Keypair.generate();
 
     console.log("Backend:", backendKeypair.publicKey.toBase58());
     console.log("User 1:", user1.publicKey.toBase58());
     console.log("User 2:", user2.publicKey.toBase58());
 
-    await airdrop(provider, user1.publicKey, 100 * LAMPORTS_PER_SOL);
-    await airdrop(provider, user2.publicKey, 100 * LAMPORTS_PER_SOL);
+    if (!useDevnet) {
+      await airdrop(provider, user1.publicKey, 100 * LAMPORTS_PER_SOL);
+      await airdrop(provider, user2.publicKey, 100 * LAMPORTS_PER_SOL);
+    }
 
     // initialize a payer account to make token mints and their authority.
-    const mintAuthority = Keypair.generate();
-    await airdrop(provider, mintAuthority.publicKey, 100 * LAMPORTS_PER_SOL);
+    // const mintAuthority = Keypair.generate();
+    const mintAuthority = readKpJson(`./tests/mint_authority.json`);
+    console.log("MintAuthority:", mintAuthority.publicKey.toBase58());
+    if (!useDevnet) {
+      await airdrop(provider, mintAuthority.publicKey, 100 * LAMPORTS_PER_SOL);
+    }
+
+
+    const mintAuthorityBalance = await provider.connection.getBalance(mintAuthority.publicKey);
+    const user1Balance = await provider.connection.getBalance(user1.publicKey);
+    console.log("MintAuthority balance:", mintAuthorityBalance / LAMPORTS_PER_SOL, "SOL");
+    console.log("User1 balance:", user1Balance / LAMPORTS_PER_SOL, "SOL");
 
     // make two different tokens with same authority and then mint those tokens to both the users
     const token1Mint = await createMint(
@@ -168,20 +220,20 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       1000 * LAMPORTS_PER_SOL
     );
 
-    const ata3 = await createATAAndMintTokens(
-      provider,
-      user2.publicKey,
-      token1Mint,
-      mintAuthority,
-      1000 * LAMPORTS_PER_SOL
-    );
-    const ata4 = await createATAAndMintTokens(
-      provider,
-      user2.publicKey,
-      token2Mint,
-      mintAuthority,
-      1000 * LAMPORTS_PER_SOL
-    );
+    // const ata3 = await createATAAndMintTokens(
+    //   provider,
+    //   user2.publicKey,
+    //   token1Mint,
+    //   mintAuthority,
+    //   1000 * LAMPORTS_PER_SOL
+    // );
+    // const ata4 = await createATAAndMintTokens(
+    //   provider,
+    //   user2.publicKey,
+    //   token2Mint,
+    //   mintAuthority,
+    //   1000 * LAMPORTS_PER_SOL
+    // );
     console.log("Minted tokens to users\n");
 
     // For now, use placeholder mints (in real test, create actual SPL tokens)
@@ -189,8 +241,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     quoteMint = token2Mint;
     user1token1ATA = ata1;
     user1token2ATA = ata2;
-    user2token1ATA = ata3;
-    user2token2ATA = ata4;
+    // user2token1ATA = ata3;
+    // user2token2ATA = ata4;
 
     [OrderbookPDA] = deriveOrderbookPDA(program.programId);
     console.log("Orderbook PDA:", OrderbookPDA.toBase58());
@@ -686,7 +738,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             InitUserLedgerComputationOffset
           ),
           user: user1.publicKey,
-          clusterAccount: arciumEnv.arciumClusterPubkey,
+          clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
           executingPool: getExecutingPoolAccAddress(program.programId),
@@ -742,7 +794,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             UpdateLedgerDepositComputationOffset
           ),
           user: user1.publicKey,
-          clusterAccount: arciumEnv.arciumClusterPubkey,
+          clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
           executingPool: getExecutingPoolAccAddress(program.programId),
@@ -829,7 +881,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("arcium program id", getArciumProgramId().toBase58());
       console.log(
         "arcium cluster pubkey",
-        arciumEnv.arciumClusterPubkey.toBase58()
+        clusterAccount.toBase58()
       );
       console.log(
         "arcium mxe account",
@@ -897,7 +949,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //   user: user1.publicKey,
       //   signPdaAccount: deriveSignerAccountPDA(program.programId),
       //   poolAccount: deriveArciumFeePoolAccountAddress(),
-      //   clusterAccount: arciumEnv.arciumClusterPubkey,
+      //   clusterAccount: clusterAccount,
       //   mxeAccount: getMXEAccAddress(program.programId),
       //   mempoolAccount: getMempoolAccAddress(program.programId),
       //   executingPool: getExecutingPoolAccAddress(program.programId),
@@ -1073,7 +1125,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //   user: user1.publicKey,
       //   signPdaAccount: deriveSignerAccountPDA(program.programId),
       //   poolAccount: deriveArciumFeePoolAccountAddress(),
-      //   clusterAccount: arciumEnv.arciumClusterPubkey,
+      //   clusterAccount: clusterAccount,
       //   mxeAccount: getMXEAccAddress(program.programId),
       //   mempoolAccount: getMempoolAccAddress(program.programId),
       //   executingPool: getExecutingPoolAccAddress(program.programId),
@@ -1136,7 +1188,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //   user: user1.publicKey,
       //   signPdaAccount: deriveSignerAccountPDA(program.programId),
       //   poolAccount: deriveArciumFeePoolAccountAddress(),
-      //   clusterAccount: arciumEnv.arciumClusterPubkey,
+      //   clusterAccount: clusterAccount,
       //   mxeAccount: getMXEAccAddress(program.programId),
       //   mempoolAccount: getMempoolAccAddress(program.programId),
       //   executingPool: getExecutingPoolAccAddress(program.programId),
@@ -1294,12 +1346,14 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       );
 
       // Airdrop SOL to cranker bot for transaction fees
-      console.log("💰 Airdropping SOL to cranker bot...");
+      // console.log("💰 Airdropping SOL to cranker bot...");
+      if (!useDevnet) {
       await airdrop(
         provider,
-        crankerBotKeypair.publicKey,
-        5 * LAMPORTS_PER_SOL
-      );
+          crankerBotKeypair.publicKey,
+          5 * LAMPORTS_PER_SOL
+        );
+      }
 
       // Use user1 who already has a ledger and deposited funds
       const withdrawAmount = 30; // Withdraw 30 tokens (user deposited 100 earlier)
@@ -1363,7 +1417,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             withdrawVerifyComputationOffset
           ),
           user: user1.publicKey,
-          clusterAccount: arciumEnv.arciumClusterPubkey,
+          clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
           executingPool: getExecutingPoolAccAddress(program.programId),
@@ -1521,7 +1575,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             program.programId,
             withdrawVerifyComputationOffset
           ),
-          clusterAccount: arciumEnv.arciumClusterPubkey,
+          clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
           executingPool: getExecutingPoolAccAddress(program.programId),
