@@ -8,12 +8,20 @@ skip-lint = false
 [programs.localnet]
 matching_engine = "8ndLKjoaUcjDTrL6Bsw3xkyafTV87ZC5XPUgf6AFJP6N"
 
+[programs.devnet]
+matching_engine = "8ndLKjoaUcjDTrL6Bsw3xkyafTV87ZC5XPUgf6AFJP6N"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/*.ts --ignore tests/helpers/**/*.ts"
+
+[test.validator]
+[[test.genesis]]
+address = "BKck65TgoKRokMjQM3datB9oRwJ8rAj2jxPXvHXUvcL6"
+program = "/Users/arnabnandi/matching_engine/artifacts/arcium_program_0.3.0.so"

@@ -58,19 +58,6 @@ export function deriveVaultPDA(
   );
 }
 
-/**
- * Derive VaultState PDA
- */
-export function deriveVaultStatePDA(
-  mint: PublicKey,
-  userPubkey: PublicKey,
-  programId: PublicKey
-): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [VAULT_STATE_SEED, mint.toBuffer(), userPubkey.toBuffer()],
-    programId
-  );
-}
 
 /**
  * Fetch OrderBookState account
@@ -94,17 +81,6 @@ export async function getOrderAccount(
   return await program.account.orderAccount.fetch(pda);
 }
 
-/**
- * Fetch VaultState account
- */
-export async function getVaultState(
-  program: Program<MatchingEngine>,
-  mint: PublicKey,
-  userPubkey: PublicKey
-): Promise<any> {
-  const [pda] = deriveVaultStatePDA(mint, userPubkey, program.programId);
-  return await program.account.vaultState.fetch(pda);
-}
 
 /**
  * Check if account exists
@@ -152,26 +128,4 @@ export async function createATAAndMintTokens(
   const ata = await getOrCreateAssociatedTokenAccount(provider.connection, authority, mint, user);
   await mintTo(provider.connection, authority, mint, ata.address, authority, amount);
   return ata.address;
-}
-
-/**
- * Derive SignerAccount PDA
- */
-export function deriveSignerAccountPDA(
-  programId: PublicKey
-): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([Buffer.from("signer_account")], programId);
-}
-
-
-// pub const ARCIUM_FEE_POOL_ACCOUNT_ADDRESS: Pubkey = Pubkey::new_from_array([
-//   94, 87, 49, 175, 232, 200, 92, 37, 140, 243, 194, 109, 249, 141, 31, 66, 59, 91, 113, 165, 232,
-//   167, 54, 30, 164, 219, 3, 225, 61, 227, 94, 8,
-// ]);
-
-export function deriveArciumFeePoolAccountAddress(): PublicKey {
-  return new PublicKey([
-    94, 87, 49, 175, 232, 200, 92, 37, 140, 243, 194, 109, 249, 141, 31, 66, 59, 91, 113, 165, 232,
-    167, 54, 30, 164, 219, 3, 225, 61, 227, 94, 8,
-  ])
 }

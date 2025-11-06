@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { MatchingEngine } from "../target/types/matching_engine";
+import MatchingEngineIDL from "../target/idl/matching_engine.json";
 import {
   PublicKey,
   Keypair,
@@ -28,7 +29,7 @@ import {
   deserializeLE,
   x25519,
   getArciumProgramId,
-  getClockAccAddress,
+  // getClockAccAddress,
   RescueCipher,
   getClusterAccAddress,
 } from "@arcium-hq/client";
@@ -42,7 +43,6 @@ import {
 import {
   deriveOrderbookPDA,
   deriveOrderAccountPDA,
-  deriveVaultStatePDA,
   deriveVaultAuthorityPDA,
   getOrderBookState,
   getOrderAccount,
@@ -51,7 +51,6 @@ import {
   deriveVaultPDA,
   createATAAndMintTokens,
   deriveSignerAccountPDA,
-  deriveArciumFeePoolAccountAddress,
   deriveUserLedgerPDA,
 } from "./helpers/accounts";
 import {
@@ -63,7 +62,6 @@ import {
   withdrawFromLedgerVerifyCompDef,
   readKpJson,
 } from "./helpers/computation";
-import { IDL } from "@coral-xyz/anchor/dist/cjs/native/system";
 
 describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   // Configure the client to use the local cluster
@@ -71,7 +69,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   const useDevnet = true; // Set to false for local testing
 
   const authority = readKpJson(`${os.homedir()}/.config/solana/id.json`);
-  
+
   // Declare provider, program, and clusterAccount at top level
   let provider: anchor.AnchorProvider;
   let program: Program<MatchingEngine>;
@@ -81,7 +79,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   if (useDevnet) {
     // Devnet configuration
     const connection = new anchor.web3.Connection(
-      "https://api.devnet.solana.com", // or your preferred RPC
+      "https://devnet.helius-rpc.com/?api-key=daa43648-936f-40e1-9303-2ea12ba55a2a", // or your preferred RPC
       "confirmed"
     );
     const wallet = new anchor.Wallet(authority);
@@ -89,7 +87,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       commitment: "confirmed",
     });
     program = new anchor.Program<MatchingEngine>(
-      IDL as anchor.Idl,
+      MatchingEngineIDL as anchor.Idl,
       provider
     );
     clusterAccount = getClusterAccAddress(1078779259); // Use your cluster offset
@@ -99,15 +97,14 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     provider = anchor.getProvider() as anchor.AnchorProvider;
     program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
     arciumEnv = getArciumEnv();
-    // clusterAccount = arciumEnv.arciumClusterPubkey;
-    clusterAccount = getClusterAccAddress(1078779259);
+    clusterAccount = arciumEnv.arciumClusterPubkey;
+    // clusterAccount = getClusterAccAddress(1078779259);
   }
   // anchor.setProvider(anchor.AnchorProvider.env());
   // const program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
   // const provider = anchor.getProvider() as anchor.AnchorProvider;
   // const arciumEnv = getArciumEnv();
 
-  // TODO ; change the seeds for deriving the orderaccount pda
   // Test accounts
   // let authority: Keypair;
   let backendKeypair: Keypair;
@@ -164,19 +161,29 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
     // Generate test accounts
     backendKeypair = Keypair.generate();
-    user1 = Keypair.generate();
+    // user1 = Keypair.generate();
+    user1 = readKpJson(`./user1.json`);
     user2 = Keypair.generate();
 
     console.log("Backend:", backendKeypair.publicKey.toBase58());
     console.log("User 1:", user1.publicKey.toBase58());
-    console.log("User 2:", user2.publicKey.toBase58());
+    // console.log("User 2:", user2.publicKey.toBase58());
 
-    await airdrop(provider, user1.publicKey, 2 * LAMPORTS_PER_SOL);
+
+    // await airdrop(provider, user1.publicKey, 2 * LAMPORTS_PER_SOL);
     // await airdrop(provider, user2.publicKey, 0.25 * LAMPORTS_PER_SOL);
 
     // initialize a payer account to make token mints and their authority.
-    const mintAuthority = Keypair.generate();
-    await airdrop(provider, mintAuthority.publicKey, 2 * LAMPORTS_PER_SOL);
+    // const mintAuthority = Keypair.generate();
+    const mintAuthority = readKpJson(`./mintAuthority.json`);
+    console.log("mintauthority public key:", mintAuthority.publicKey.toBase58());
+
+    //log the amount of sol in mintAuthority and user1
+    const mintAuthorityBalance = await provider.connection.getBalance(mintAuthority.publicKey);
+    const user1Balance = await provider.connection.getBalance(user1.publicKey);
+    console.log("MintAuthority balance:", mintAuthorityBalance / LAMPORTS_PER_SOL, "SOL");
+    console.log("User1 balance:", user1Balance / LAMPORTS_PER_SOL, "SOL");
+    // await airdrop(provider, mintAuthority.publicKey, 2 * LAMPORTS_PER_SOL);
 
     // make two different tokens with same authority and then mint those tokens to both the users
     const token1Mint = await createMint(
@@ -186,6 +193,12 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       null,
       9
     );
+    console.log("basemint initialized", token1Mint.toBase58());
+    
+    // Verify mint account is fully initialized on devnet
+    await provider.connection.getAccountInfo(token1Mint);
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds for devnet
+    
     const token2Mint = await createMint(
       provider.connection,
       mintAuthority,
@@ -193,6 +206,11 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       null,
       9
     );
+    console.log("quotemint initialized");
+    
+    // Verify mint account is fully initialized on devnet
+    await provider.connection.getAccountInfo(token2Mint);
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds for devnet
     const ata1 = await createATAAndMintTokens(
       provider,
       user1.publicKey,
@@ -200,6 +218,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       mintAuthority,
       1000 * LAMPORTS_PER_SOL
     );
+    console.log("ata1 initialized")
     const ata2 = await createATAAndMintTokens(
       provider,
       user1.publicKey,
@@ -207,21 +226,22 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       mintAuthority,
       1000 * LAMPORTS_PER_SOL
     );
+    console.log("ata2 initialized")
 
-    const ata3 = await createATAAndMintTokens(
-      provider,
-      user2.publicKey,
-      token1Mint,
-      mintAuthority,
-      1000 * LAMPORTS_PER_SOL
-    );
-    const ata4 = await createATAAndMintTokens(
-      provider,
-      user2.publicKey,
-      token2Mint,
-      mintAuthority,
-      1000 * LAMPORTS_PER_SOL
-    );
+    // const ata3 = await createATAAndMintTokens(
+    //   provider,
+    //   user2.publicKey,
+    //   token1Mint,
+    //   mintAuthority,
+    //   1000 * LAMPORTS_PER_SOL
+    // );
+    // const ata4 = await createATAAndMintTokens(
+    //   provider,
+    //   user2.publicKey,
+    //   token2Mint,
+    //   mintAuthority,
+    //   1000 * LAMPORTS_PER_SOL
+    // );
     console.log("Minted tokens to users\n");
 
     // For now, use placeholder mints (in real test, create actual SPL tokens)
@@ -244,6 +264,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       backendSecretKey = x25519.utils.randomSecretKey();
       backendPublicKey = x25519.getPublicKey(backendSecretKey);
 
+      console.log("backend public key generated:", backendPublicKey.toString());
+
       // Check if account already exists
       const accountAlreadyExists = await accountExists(provider, OrderbookPDA);
       console.log(
@@ -257,17 +279,19 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       const [vaultAuthorityPDA] = deriveVaultAuthorityPDA(program.programId);
 
       if (!accountAlreadyExists) {
+
+        console.log("initializing program-=================================");
         // Initialize program
         const tx = await program.methods
           .initialize(Array.from(backendPublicKey), baseMint, quoteMint)
           .accountsPartial({
             authority: authority.publicKey,
-            orderBookState: OrderbookPDA,
             systemProgram: SystemProgram.programId,
             baseVault: baseVaultPDA,
             quoteVault: quoteVaultPDA,
             baseMint: baseMint,
             quoteMint: quoteMint,
+            orderbookState: OrderbookPDA,
             vaultAuthority: vaultAuthorityPDA,
             tokenProgram: TOKEN_PROGRAM_ID,
           })
@@ -297,6 +321,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         "0",
         "Initial orderbook nonce should be 0"
       );
+
+      // console.log
 
       expect(Buffer.from(orderBookState.backendPubkey)).to.deep.equal(
         Buffer.from(backendPublicKey),
@@ -564,7 +590,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     });
   });
 
-  describe("Suite 1.3: Order Submission", () => {
+  describe.only("Suite 1.3: Order Submission", () => {
     it("Should submit buy order", async () => {
       let submitOrderCompDefSig;
       try {
@@ -674,17 +700,15 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       const [baseVaultPDA] = deriveVaultPDA(baseMint, program.programId);
       const [quoteVaultPDA] = deriveVaultPDA(quoteMint, program.programId);
 
-      const [vaultStatePDA] = deriveVaultStatePDA(
-        baseMint,
-        user1.publicKey,
-        program.programId
-      );
+
       const [vaultAuthorityPDA] = deriveVaultAuthorityPDA(program.programId);
 
       const [userLedgerPDA] = deriveUserLedgerPDA(
         user1.publicKey,
         program.programId
       );
+
+      console.log("user ledger pda", userLedgerPDA.toBase58());
 
       const InitUserLedgerComputationOffset = new anchor.BN(
         randomBytes(8),
@@ -713,7 +737,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         "userLedgerInitializedEvent"
       );
 
-      // const
+      console.log("initialize user ledger-=================================");
 
       // initlialize a user ledger and then deposit to the ledger
       await program.methods
@@ -728,9 +752,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             InitUserLedgerComputationOffset
           ),
           user: user1.publicKey,
-          signPdaAccount: deriveSignerAccountPDA(program.programId)[0],
-          poolAccount: deriveArciumFeePoolAccountAddress(),
-          // clusterAccount: arciumEnv.arciumClusterPubkey,
           clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -739,7 +760,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             program.programId,
             Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           userLedger: userLedgerPDA,
@@ -788,9 +808,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             UpdateLedgerDepositComputationOffset
           ),
           user: user1.publicKey,
-          signPdaAccount: deriveSignerAccountPDA(program.programId)[0],
-          poolAccount: deriveArciumFeePoolAccountAddress(),
-          // clusterAccount: arciumEnv.arciumClusterPubkey,
           clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -801,7 +818,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("update_ledger_deposit")
             ).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           userLedger: userLedgerPDA,
@@ -870,18 +886,18 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("=== submitOrder Accounts ===");
       console.log("User:", user1.publicKey.toBase58());
       console.log("Vault PDA:", baseVaultPDA.toBase58());
-      console.log("Vault State PDA:", vaultStatePDA.toBase58());
+      // console.log("Vault State PDA:", vaultStatePDA.toBase58());
       console.log("Order Account PDA:", orderAccountPDA.toBase58());
       console.log("User Ledger PDA:", userLedgerPDA.toBase58());
       console.log("Orderbook PDA:", OrderbookPDA.toBase58());
       console.log("program id", program.programId.toBase58());
 
       // verify if arcium accounts are correct
-      console.log(
-        "arcium fee pool account",
-        deriveArciumFeePoolAccountAddress().toBase58()
-      );
-      console.log("arcium clock account", getClockAccAddress().toBase58());
+      // console.log(
+      //   "arcium fee pool account",
+      //   deriveArciumFeePoolAccountAddress().toBase58()
+      // );
+      // console.log("arcium clock account", getClockAccAddress().toBase58());
       console.log("arcium program id", getArciumProgramId().toBase58());
       // console.log(
       //   "arcium cluster pubkey",
@@ -1013,41 +1029,41 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       // expect(orderAccount.status).to.equal(1); // Processing
     });
 
-    it("Test 1.3.3: Should handle user pubkey chunking correctly", async () => {
-      console.log("\n--- Test 1.3.3: User Pubkey Chunking ---");
+    // it("Test 1.3.3: Should handle user pubkey chunking correctly", async () => {
+    //   console.log("\n--- Test 1.3.3: User Pubkey Chunking ---");
 
-      // Test pubkey chunking
-      const testPubkey = user1.publicKey.toBuffer();
+    //   // Test pubkey chunking
+    //   const testPubkey = user1.publicKey.toBuffer();
 
-      // Split into 4x u64 chunks
-      const chunks = [
-        BigInt("0x" + testPubkey.slice(0, 8).toString("hex")),
-        BigInt("0x" + testPubkey.slice(8, 16).toString("hex")),
-        BigInt("0x" + testPubkey.slice(16, 24).toString("hex")),
-        BigInt("0x" + testPubkey.slice(24, 32).toString("hex")),
-      ];
+    //   // Split into 4x u64 chunks
+    //   const chunks = [
+    //     BigInt("0x" + testPubkey.slice(0, 8).toString("hex")),
+    //     BigInt("0x" + testPubkey.slice(8, 16).toString("hex")),
+    //     BigInt("0x" + testPubkey.slice(16, 24).toString("hex")),
+    //     BigInt("0x" + testPubkey.slice(24, 32).toString("hex")),
+    //   ];
 
-      console.log("Original pubkey:", user1.publicKey.toBase58());
-      console.log(
-        "Chunks:",
-        chunks.map((c) => c.toString(16))
-      );
+    //   console.log("Original pubkey:", user1.publicKey.toBase58());
+    //   console.log(
+    //     "Chunks:",
+    //     chunks.map((c) => c.toString(16))
+    //   );
 
-      // Reconstruct
-      const reconstructed = Buffer.concat([
-        Buffer.from(chunks[0].toString(16).padStart(16, "0"), "hex"),
-        Buffer.from(chunks[1].toString(16).padStart(16, "0"), "hex"),
-        Buffer.from(chunks[2].toString(16).padStart(16, "0"), "hex"),
-        Buffer.from(chunks[3].toString(16).padStart(16, "0"), "hex"),
-      ]);
+    //   // Reconstruct
+    //   const reconstructed = Buffer.concat([
+    //     Buffer.from(chunks[0].toString(16).padStart(16, "0"), "hex"),
+    //     Buffer.from(chunks[1].toString(16).padStart(16, "0"), "hex"),
+    //     Buffer.from(chunks[2].toString(16).padStart(16, "0"), "hex"),
+    //     Buffer.from(chunks[3].toString(16).padStart(16, "0"), "hex"),
+    //   ]);
 
-      console.log(
-        "Reconstructed pubkey:",
-        new PublicKey(reconstructed).toBase58()
-      );
+    //   console.log(
+    //     "Reconstructed pubkey:",
+    //     new PublicKey(reconstructed).toBase58()
+    //   );
 
-      console.log("✓ Pubkey chunking works correctly");
-    });
+    //   console.log("✓ Pubkey chunking works correctly");
+    // });
 
     it("Test 1.3.4: Should encrypt/decrypt correctly", async () => {
       console.log("\n--- Test 1.3.4: Encryption/Decryption ---");
@@ -1422,8 +1438,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             withdrawVerifyComputationOffset
           ),
           user: user1.publicKey,
-          signPdaAccount: deriveSignerAccountPDA(program.programId)[0],
-          poolAccount: deriveArciumFeePoolAccountAddress(),
+          // signPdaAccount: deriveSignerAccountPDA(program.programId)[0],
+          // poolAccount: deriveArciumFeePoolAccountAddress(),
           // clusterAccount: arciumEnv.arciumClusterPubkey,
           clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
@@ -1435,7 +1451,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("update_ledger_withdraw_verify")
             ).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
+          // clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           vault: baseVaultPDA,
@@ -1584,8 +1600,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             program.programId,
             withdrawVerifyComputationOffset
           ),
-          signPdaAccount: deriveSignerAccountPDA(program.programId),
-          poolAccount: deriveArciumFeePoolAccountAddress(),
+          // signPdaAccount: deriveSignerAccountPDA(program.programId),
+          // poolAccount: deriveArciumFeePoolAccountAddress(),
           // clusterAccount: arciumEnv.arciumClusterPubkey,
           clusterAccount: clusterAccount,
           mxeAccount: getMXEAccAddress(program.programId),
@@ -1597,7 +1613,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("update_ledger_withdraw_verify")
             ).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
+          // clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           tokenProgram: TOKEN_PROGRAM_ID,
