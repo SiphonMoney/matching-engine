@@ -27,7 +27,7 @@ import {
   deserializeLE,
   x25519,
   getArciumProgramId,
-  getClockAccAddress,
+  // getClockAccAddress,
   RescueCipher,
 } from "@arcium-hq/client";
 import * as os from "os";
@@ -48,8 +48,6 @@ import {
   airdrop,
   deriveVaultPDA,
   createATAAndMintTokens,
-  deriveSignerAccountPDA,
-  deriveArciumFeePoolAccountAddress,
   deriveUserLedgerPDA,
 } from "./helpers/accounts";
 import {
@@ -688,8 +686,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             InitUserLedgerComputationOffset
           ),
           user: user1.publicKey,
-          signPdaAccount: deriveSignerAccountPDA(program.programId),
-          poolAccount: deriveArciumFeePoolAccountAddress(),
           clusterAccount: arciumEnv.arciumClusterPubkey,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -698,7 +694,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             program.programId,
             Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           userLedger: userLedgerPDA,
@@ -747,8 +742,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             UpdateLedgerDepositComputationOffset
           ),
           user: user1.publicKey,
-          signPdaAccount: deriveSignerAccountPDA(program.programId),
-          poolAccount: deriveArciumFeePoolAccountAddress(),
           clusterAccount: arciumEnv.arciumClusterPubkey,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -759,7 +752,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("update_ledger_deposit")
             ).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           userLedger: userLedgerPDA,
@@ -834,12 +826,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("Orderbook PDA:", OrderbookPDA.toBase58());
       console.log("program id", program.programId.toBase58());
 
-      // verify if arcium accounts are correct
-      console.log(
-        "arcium fee pool account",
-        deriveArciumFeePoolAccountAddress().toBase58()
-      );
-      console.log("arcium clock account", getClockAccAddress().toBase58());
       console.log("arcium program id", getArciumProgramId().toBase58());
       console.log(
         "arcium cluster pubkey",
@@ -1377,8 +1363,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             withdrawVerifyComputationOffset
           ),
           user: user1.publicKey,
-          signPdaAccount: deriveSignerAccountPDA(program.programId),
-          poolAccount: deriveArciumFeePoolAccountAddress(),
           clusterAccount: arciumEnv.arciumClusterPubkey,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -1389,7 +1373,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("update_ledger_withdraw_verify")
             ).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           vault: baseVaultPDA,
@@ -1538,8 +1521,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             program.programId,
             withdrawVerifyComputationOffset
           ),
-          signPdaAccount: deriveSignerAccountPDA(program.programId),
-          poolAccount: deriveArciumFeePoolAccountAddress(),
           clusterAccount: arciumEnv.arciumClusterPubkey,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
@@ -1550,7 +1531,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
               getCompDefAccOffset("update_ledger_withdraw_verify")
             ).readUInt32LE()
           ),
-          clockAccount: getClockAccAddress(),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
           tokenProgram: TOKEN_PROGRAM_ID,
