@@ -133,7 +133,7 @@ pub struct WithdrawFromLedgerVerify<'info> {
         seeds = [b"user_ledger", user.key().as_ref()],
         bump = user_ledger.bump,
     )]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
     
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,

@@ -94,6 +94,6 @@ pub struct InitializeUserLedger<'info> {
         seeds = [b"user_ledger", user.key().as_ref()],
         bump,
     )]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
 
 }

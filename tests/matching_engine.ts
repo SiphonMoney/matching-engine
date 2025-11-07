@@ -100,8 +100,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   }
 
 
-
-
   // Configure the client to use the local cluster
   // anchor.setProvider(anchor.AnchorProvider.env());
   // const program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
@@ -243,7 +241,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
     user1token2ATA = ata2;
     // user2token1ATA = ata3;
     // user2token2ATA = ata4;
-
+    console.log("programId", program.programId.toBase58());
     [OrderbookPDA] = deriveOrderbookPDA(program.programId);
     console.log("Orderbook PDA:", OrderbookPDA.toBase58());
   });
@@ -724,6 +722,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       const initializeUserLedgerPromise = awaitEvent(
         "userLedgerInitializedEvent"
       );
+
+      console.log("initializing user ledger=======================================================");
 
       // initlialize a user ledger and then deposit to the ledger
       await program.methods

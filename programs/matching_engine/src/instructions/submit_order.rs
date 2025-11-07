@@ -158,14 +158,14 @@ pub struct SubmitOrder<'info> {
         ],
         bump,
     )]
-    pub order_account: Account<'info, OrderAccount>,
+    pub order_account: Box<Account<'info, OrderAccount>>,
 
     #[account(
         mut,
         seeds = [b"user_ledger", user.key().as_ref()],
         bump = user_ledger.bump,
     )]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
 
     #[account(
         mut,

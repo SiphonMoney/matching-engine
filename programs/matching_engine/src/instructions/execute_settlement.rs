@@ -105,8 +105,8 @@ pub struct ExecuteSettlement<'info> {
     pub arcium_program: Program<'info, Arcium>,
 
     #[account(mut)]
-    pub buyer_ledger: Account<'info, UserPrivateLedger>,
+    pub buyer_ledger: Box<Account<'info, UserPrivateLedger>>,
     #[account(mut)]
-    pub seller_ledger: Account<'info, UserPrivateLedger>,
+    pub seller_ledger: Box<Account<'info, UserPrivateLedger>>,
 
 }
