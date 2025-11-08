@@ -101,15 +101,11 @@ pub mod matching_engine {
     pub fn init_encrypted_orderbook(
         ctx: Context<InitEncryptedOrderbook>,
         computation_offset: u64,
+        nonce: u128,
     ) -> Result<()> {
-        // Initialize orderbook state
-        ctx.accounts.orderbook_state.total_orders_processed = 0;
-        ctx.accounts.orderbook_state.total_matches = 0;
-        ctx.accounts.orderbook_state.last_match_timestamp = Clock::get()?.unix_timestamp;
-
         // Queue MPC computation to initialize encrypted orderbook
         let args = vec![
-            Argument::PlaintextU128(0), // Initial nonce
+            Argument::PlaintextU128(nonce), // Initial nonce
         ];
 
         ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
@@ -145,7 +141,7 @@ pub mod matching_engine {
         };
 
         // Copy orderbook data
-        let orderbook_state = &mut ctx.accounts.orderbook_state;
+        let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
         orderbook_state.orderbook_nonce = orderbook_enc.nonce;
         orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
 
@@ -221,7 +217,7 @@ pub mod matching_engine {
 
                 // Update orderbook
 
-                let orderbook_state = &mut ctx.accounts.orderbook_state;
+                let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
 
@@ -242,7 +238,7 @@ pub mod matching_engine {
                     if num_matches > 3 {
                         match4 = matches_enc.ciphertexts[15..20].try_into().unwrap();
                     }
-                    ctx.accounts.orderbook_state.total_matches += num_matches as u64;
+                    orderbook_state.total_matches += num_matches as u64;
 
                     emit!(MatchesFoundEvent {
                         num_matches,
@@ -307,10 +303,10 @@ pub mod matching_engine {
                 let success = field_0.field_3;
 
                 // Update orderbook
-                let orderbook_state = &mut ctx.accounts.orderbook_state;
+                let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                ctx.accounts.orderbook_state.total_orders_processed += 1;
+                orderbook_state.total_orders_processed += 1;
 
                 // Update user ledger
                 let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
@@ -489,7 +485,7 @@ pub struct MatchOrdersCallback<'info> {
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub orderbook_state: Box<Account<'info, OrderBookState>>,
+    pub orderbook_state: AccountLoader<'info, OrderBookState>,
 }
 
 #[callback_accounts("submit_order")]
@@ -503,7 +499,7 @@ pub struct SubmitOrderCallback<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
 
     #[account(mut)]
-    pub orderbook_state: Box<Account<'info, OrderBookState>>,
+    pub orderbook_state: AccountLoader<'info, OrderBookState>,
     #[account(mut)]
     pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
     #[account(mut)]
@@ -588,7 +584,7 @@ pub struct InitEncryptedOrderbook<'info> {
     pub arcium_program: Program<'info, Arcium>,
 
     #[account(mut)]
-    pub orderbook_state: Box<Account<'info, OrderBookState>>,
+    pub orderbook_state: AccountLoader<'info, OrderBookState>,
 }
 
 #[callback_accounts("init_order_book")]
@@ -603,7 +599,7 @@ pub struct InitOrderBookCallback<'info> {
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub orderbook_state: Box<Account<'info, OrderBookState>>,
+    pub orderbook_state: AccountLoader<'info, OrderBookState>,
 }
 
 #[callback_accounts("update_ledger_deposit")]

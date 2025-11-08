@@ -16,7 +16,7 @@ pub fn trigger_matching(
     ctx: Context<TriggerMatching>,
     computation_offset: u64,
 ) -> Result<()> {
-    let orderbook_state = &mut ctx.accounts.orderbook_state;
+    let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
     let current_time = Clock::get()?.unix_timestamp;
     
     // Rate limit matching (every 15 seconds) or based on complex logic based on filling of the orderbook
@@ -35,7 +35,7 @@ pub fn trigger_matching(
         // OrderBook (Enc<Mxe, OrderBook>)
         Argument::PlaintextU128(orderbook_state.orderbook_nonce),
         Argument::Account(
-            orderbook_state.key(),
+            ctx.accounts.orderbook_state.key(),
             8 + 32,  
             42 * 32, 
         ),
@@ -97,12 +97,8 @@ pub struct TriggerMatching<'info> {
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
-    #[account(
-        mut,
-        seeds = [ORDERBOOK_SEED],
-        bump = orderbook_state.bump,
-    )]
-    pub orderbook_state: Box<Account<'info, OrderBookState>>,
+    #[account(mut)]
+    pub orderbook_state: AccountLoader<'info, OrderBookState>,
 }
 
 #[event]

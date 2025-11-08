@@ -38,6 +38,7 @@ pub fn submit_order(
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
     let user_ledger = ctx.accounts.user_ledger.load_mut()?;
+    let orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
     
     let args = vec![        
 
@@ -56,7 +57,7 @@ pub fn submit_order(
         ),
 
         // Enc<Mxe, OrderBook>
-        Argument::PlaintextU128(ctx.accounts.orderbook_state.orderbook_nonce),
+        Argument::PlaintextU128(orderbook_state.orderbook_nonce),
         Argument::Account(
             ctx.accounts.orderbook_state.key(),
             8 + 32,      // Offset: discriminator(8) + authority(32) = 40
@@ -164,10 +165,6 @@ pub struct SubmitOrder<'info> {
     #[account(mut)]
     pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
 
-    #[account(
-        mut,
-        seeds = [ORDERBOOK_SEED],
-        bump = orderbook_state.bump,
-    )]
-    pub orderbook_state: Box<Account<'info, OrderBookState>>,
+    #[account(mut)]
+    pub orderbook_state: AccountLoader<'info, OrderBookState>,
 }

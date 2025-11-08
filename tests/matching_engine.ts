@@ -272,7 +272,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           .initialize(Array.from(backendPublicKey), baseMint, quoteMint)
           .accountsPartial({
             authority: authority.publicKey,
-            orderBookState: OrderbookPDA,
+            orderbookState: OrderbookPDA,
             systemProgram: SystemProgram.programId,
             baseVault: baseVaultPDA,
             quoteVault: quoteVaultPDA,
@@ -745,6 +745,48 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //accountinfo of userledger
       // console.log("userLedger account info", await program.account.userPrivateLedger.fetch(userLedgerPDA));
 
+    //   console.log("we are entering to initialize the encrypted orderbook");
+
+    //   const initEncryptedOrderbookNonce = randomBytes(16);
+
+    //   const initEncryptedOrderbookComputationOffset = new anchor.BN(randomBytes(8), "hex");
+
+    //   const initEncryptedOrderbookTx = await program.methods
+    //   .initEncryptedOrderbook(
+    //     initEncryptedOrderbookComputationOffset,
+    //     new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
+    //   )
+    //   .accounts({
+    //     computationAccount: getComputationAccAddress(
+    //       program.programId,
+    //       initEncryptedOrderbookComputationOffset
+    //     ),
+    //     payer: authority.publicKey,
+    //     mxeAccount: getMXEAccAddress(program.programId),
+    //     mempoolAccount: getMempoolAccAddress(program.programId),
+    //     executingPool: getExecutingPoolAccAddress(program.programId),
+    //     compDefAccount: getCompDefAccAddress(
+    //       program.programId,
+    //       Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
+    //     ),  
+    //     clusterAccount: clusterAccount,
+    //     orderbookState: OrderbookPDA,
+    //   })
+    //   .signers([authority])
+    //   .rpc({ commitment: "confirmed" });
+
+    // console.log("Encrypted orderbook initialized with signature:", initEncryptedOrderbookTx);
+
+    // // Wait for initGame computation finalization
+    // const initEncryptedOrderbookFinalizeSig = await awaitComputationFinalization(
+    //   provider as anchor.AnchorProvider,
+    //   initEncryptedOrderbookComputationOffset,
+    //   program.programId,
+    //   "confirmed"
+    // );
+    // console.log("Init game finalize signature:", initEncryptedOrderbookFinalizeSig);
+  
+
       // initlialize a user ledger and then deposit to the ledger
 
       try {
@@ -936,11 +978,47 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         ).toBase58()
       );
 
-      const User1Nonce = randomBytes(16);
-      const User1Ciphertext = User1Cipher.encrypt(
-        [BigInt(amount), BigInt(price)],
-        User1Nonce
-      );
+    //   console.log("we are entering to initialize the encrypted orderbook");
+
+    //   const initEncryptedOrderbookNonce = randomBytes(16);
+
+    //   const initEncryptedOrderbookComputationOffset = new anchor.BN(randomBytes(8), "hex");
+
+    //   const initEncryptedOrderbookTx = await program.methods
+    //   .initEncryptedOrderbook(
+    //     initEncryptedOrderbookComputationOffset,
+    //     new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
+    //   )
+    //   .accounts({
+    //     computationAccount: getComputationAccAddress(
+    //       program.programId,
+    //       initEncryptedOrderbookComputationOffset
+    //     ),
+    //     payer: authority.publicKey,
+    //     mxeAccount: getMXEAccAddress(program.programId),
+    //     mempoolAccount: getMempoolAccAddress(program.programId),
+    //     executingPool: getExecutingPoolAccAddress(program.programId),
+    //     compDefAccount: getCompDefAccAddress(
+    //       program.programId,
+    //       Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
+    //     ),  
+    //     clusterAccount: clusterAccount,
+    //     orderbookState: OrderbookPDA,
+    //   })
+    //   .signers([authority])
+    //   .rpc({ commitment: "confirmed" });
+
+    // console.log("Encrypted orderbook initialized with signature:", initEncryptedOrderbookTx);
+
+    // // Wait for initGame computation finalization
+    // const initEncryptedOrderbookFinalizeSig = await awaitComputationFinalization(
+    //   provider as anchor.AnchorProvider,
+    //   initEncryptedOrderbookComputationOffset,
+    //   program.programId,
+    //   "confirmed"
+    // );
+    // console.log("Init game finalize signature:", initEncryptedOrderbookFinalizeSig);
+  
 
       console.log("before the submit order");
 
