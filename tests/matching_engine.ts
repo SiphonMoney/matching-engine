@@ -724,8 +724,30 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       );
 
       console.log("initializing user ledger=======================================================");
+      // list all the accounts that are needed for the initialize user ledger instruction
+      console.log("accounts needed for the initialize user ledger instruction");
+      console.log("computationAccount", getComputationAccAddress(
+        program.programId,
+        InitUserLedgerComputationOffset
+      ));
+      console.log("user", user1.publicKey.toBase58());
+      console.log("clusterAccount", clusterAccount.toBase58());
+      console.log("mxeAccount", getMXEAccAddress(program.programId).toBase58());
+      console.log("mempoolAccount", getMempoolAccAddress(program.programId).toBase58());
+      console.log("executingPool", getExecutingPoolAccAddress(program.programId).toBase58());
+      console.log("compDefAccount", getCompDefAccAddress(
+        program.programId,
+        Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
+      ).toBase58());
+      console.log("systemProgram", SystemProgram.programId.toBase58());
+      console.log("arciumProgram", getArciumProgramId().toBase58());
+      console.log("userLedger", userLedgerPDA.toBase58());
+      //accountinfo of userledger
+      // console.log("userLedger account info", await program.account.userPrivateLedger.fetch(userLedgerPDA));
 
       // initlialize a user ledger and then deposit to the ledger
+
+      try {
       await program.methods
         .initializeUserLedger(
           Array.from(User1PublicKey),
@@ -752,6 +774,10 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
         })
         .signers([user1])
         .rpc({ commitment: "confirmed" });
+      } catch (error) {
+        const log = await error.getLogs();
+        console.log("log", log);
+      }
 
       const info11 = await program.account.userPrivateLedger.fetch(
         userLedgerPDA
@@ -930,6 +956,9 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       );
       console.log("user ledger account info", info2);
 
+
+      console.log("before the submit order===============================================================================");
+
       // 5. Submit order
       // const tx = await program.methods
       //   .submitOrder(
@@ -947,8 +976,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //     submitOrderComputationOffset
       //   ),
       //   user: user1.publicKey,
-      //   signPdaAccount: deriveSignerAccountPDA(program.programId),
-      //   poolAccount: deriveArciumFeePoolAccountAddress(),
+      //   // signPdaAccount: deriveSignerAccountPDA(program.programId),
+      //   // poolAccount: deriveArciumFeePoolAccountAddress(),
       //   clusterAccount: clusterAccount,
       //   mxeAccount: getMXEAccAddress(program.programId),
       //   mempoolAccount: getMempoolAccAddress(program.programId),
@@ -957,7 +986,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       //     program.programId,
       //     Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
       //   ),
-      //   clockAccount: getClockAccAddress(),
+      //   // clockAccount: getClockAccAddress(),
       //   systemProgram: SystemProgram.programId,
       //   arciumProgram: getArciumProgramId(),
       //   baseMint: baseMint,
@@ -974,7 +1003,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       // const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
       // console.log("order account info",info3);
 
-      // 6. Wait for MPC finalization
+      // // 6. Wait for MPC finalization
       // await awaitComputationFinalization(
       //   provider,
       //   submitOrderComputationOffset,

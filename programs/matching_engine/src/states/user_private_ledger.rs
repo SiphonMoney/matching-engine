@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 
-#[account]
+
+#[account(zero_copy(unsafe))]
+#[repr(C, packed)]
+#[derive(Default, Debug)]
 #[derive(InitSpace)]
 pub struct UserPrivateLedger {
     pub owner: Pubkey,

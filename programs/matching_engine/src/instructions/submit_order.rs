@@ -37,6 +37,7 @@ pub fn submit_order(
     order_account.bump = ctx.bumps.order_account;
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+    let user_ledger = ctx.accounts.user_ledger.load_mut()?;
     
     let args = vec![        
 
@@ -47,7 +48,7 @@ pub fn submit_order(
         Argument::EncryptedU64(price),  // Client encrypts this
 
         // Enc<Mxe, Balances>
-        Argument::PlaintextU128(ctx.accounts.user_ledger.balance_nonce),
+        Argument::PlaintextU128(user_ledger.balance_nonce),
         Argument::Account(
             ctx.accounts.user_ledger.key(),
             8 + 32,          // Offset: discriminator + owner
@@ -59,7 +60,7 @@ pub fn submit_order(
         Argument::Account(
             ctx.accounts.orderbook_state.key(),
             8 + 32,      // Offset: discriminator(8) + authority(32) = 40
-            42 * 32,     // Size: 52 chunks × 32 bytes = 1312 bytes
+            42 * 32,     // Size: 42 chunks × 32 bytes = 1344 bytes
         ),
 
         Argument::PlaintextU64(order_id),
@@ -160,12 +161,8 @@ pub struct SubmitOrder<'info> {
     )]
     pub order_account: Box<Account<'info, OrderAccount>>,
 
-    #[account(
-        mut,
-        seeds = [b"user_ledger", user.key().as_ref()],
-        bump = user_ledger.bump,
-    )]
-    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
+    #[account(mut)]
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
 
     #[account(
         mut,

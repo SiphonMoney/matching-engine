@@ -38,11 +38,13 @@ pub fn deposit_to_ledger(
     
     // 2. Queue MPC computation to update encrypted balances
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+
+    let user_ledger = ctx.accounts.user_ledger.load_mut()?;
     
     let args = vec![
         // Current encrypted balances for the user
         Argument::ArcisPubkey(user_pubkey),
-        Argument::PlaintextU128(ctx.accounts.user_ledger.balance_nonce),
+        Argument::PlaintextU128(user_ledger.balance_nonce),
         Argument::Account(
             ctx.accounts.user_ledger.key(),
             8 + 32,          // Offset: discriminator + owner
@@ -141,12 +143,8 @@ pub struct DepositToLedger<'info> {
     )]
     pub user_token_account: Account<'info, TokenAccount>,
     
-    #[account(
-        mut,
-        seeds = [b"user_ledger", user.key().as_ref()],
-        bump = user_ledger.bump,
-    )]
-    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
+    #[account(mut,)]
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
     
     
     pub token_program: Program<'info, Token>,

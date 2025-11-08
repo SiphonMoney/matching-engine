@@ -18,4 +18,6 @@ pub enum ErrorCode {
     AlreadySettled,
     #[msg("Unauthorized settlement")]
     UnauthorizedSettlement,
+    #[msg("Not approved")]
+    NotApproved,
 }

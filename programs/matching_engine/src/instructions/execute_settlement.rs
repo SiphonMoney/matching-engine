@@ -23,13 +23,16 @@ pub fn execute_settlement(
     is_base: bool,
     computation_offset: u64,
 ) -> Result<()> {
+
+    let buyer_ledger = ctx.accounts.buyer_ledger.load_mut()?;
+    let seller_ledger = ctx.accounts.seller_ledger.load_mut()?;
     let args = vec![
         Argument::ArcisPubkey(user1_enc_pubkey),
-        Argument::PlaintextU128(ctx.accounts.buyer_ledger.balance_nonce),
+        Argument::PlaintextU128(buyer_ledger.balance_nonce),
         Argument::Account(ctx.accounts.buyer_ledger.key(), 8 + 32, 4 * 32),
 
         Argument::ArcisPubkey(user2_enc_pubkey),
-        Argument::PlaintextU128(ctx.accounts.seller_ledger.balance_nonce),
+        Argument::PlaintextU128(seller_ledger.balance_nonce),
         Argument::Account(ctx.accounts.seller_ledger.key(), 8 + 32, 4 * 32),
 
         Argument::PlaintextU64(execution_price),
@@ -105,8 +108,8 @@ pub struct ExecuteSettlement<'info> {
     pub arcium_program: Program<'info, Arcium>,
 
     #[account(mut)]
-    pub buyer_ledger: Box<Account<'info, UserPrivateLedger>>,
+    pub buyer_ledger: AccountLoader<'info, UserPrivateLedger>,
     #[account(mut)]
-    pub seller_ledger: Box<Account<'info, UserPrivateLedger>>,
+    pub seller_ledger: AccountLoader<'info, UserPrivateLedger>,
 
 }

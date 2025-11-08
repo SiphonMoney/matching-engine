@@ -15,10 +15,13 @@ declare_id!("3MSz7Kkyf6yXC1puWY8gofiPqCHPqYYMdMeZd3KYDi3y");
 
 pub mod instructions;
 pub mod states;
-pub use instructions::*;
 pub use states::*;
+pub mod utils;
+
 pub mod errors;
 pub use errors::ErrorCode;
+pub use instructions::*;
+pub use utils::*;
 
 // Macro to copy orderbook data - minimizes stack usage
 
@@ -275,12 +278,12 @@ pub mod matching_engine {
                 let user1_ledger_enc = &field_0.field_0;
                 let user2_ledger_enc = &field_0.field_1;
 
-                let user1_ledger = &mut ctx.accounts.user1_ledger;
+                let mut user1_ledger = ctx.accounts.user1_ledger.load_mut()?;
                 user1_ledger.balance_nonce = user1_ledger_enc.nonce;
                 user1_ledger.encrypted_balances = user1_ledger_enc.ciphertexts;
                 user1_ledger.last_update = Clock::get()?.unix_timestamp;
 
-                let user2_ledger = &mut ctx.accounts.user2_ledger;
+                let mut user2_ledger = ctx.accounts.user2_ledger.load_mut()?;
                 user2_ledger.balance_nonce = user2_ledger_enc.nonce;
                 user2_ledger.encrypted_balances = user2_ledger_enc.ciphertexts;
                 user2_ledger.last_update = Clock::get()?.unix_timestamp;
@@ -310,17 +313,14 @@ pub mod matching_engine {
                 ctx.accounts.orderbook_state.total_orders_processed += 1;
 
                 // Update user ledger
-                ctx.accounts.user_ledger.balance_nonce = ledger_enc.nonce;
-                for i in 0..4 {
-                    ctx.accounts.user_ledger.encrypted_balances[i] = ledger_enc.ciphertexts[i];
-                }
-                ctx.accounts.user_ledger.last_update = Clock::get()?.unix_timestamp;
+                let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
+                user_ledger.balance_nonce = ledger_enc.nonce;
+                user_ledger.encrypted_balances = ledger_enc.ciphertexts;
+                user_ledger.last_update = Clock::get()?.unix_timestamp;
 
                 // Update order account
                 ctx.accounts.order_account.order_nonce = status_enc.nonce;
-                for i in 0..7 {
-                    ctx.accounts.order_account.encrypted_order[i] = status_enc.ciphertexts[i];
-                }
+                ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
 
                 emit!(OrderSubmittedEvent {
                     order_id: ctx.accounts.order_account.order_id,
@@ -380,7 +380,7 @@ pub mod matching_engine {
             ComputationOutputs::Success(UpdateLedgerDepositOutput {
                 field_0: balances_enc,
             }) => {
-                let ledger = &mut ctx.accounts.user_ledger;
+                let ledger = &mut ctx.accounts.user_ledger.load_mut()?;
 
                 ledger.balance_nonce = balances_enc.nonce;
                 ledger.encrypted_balances = balances_enc.ciphertexts;
@@ -416,7 +416,7 @@ pub mod matching_engine {
             ComputationOutputs::Success(InitUserLedgerOutput {
                 field_0: ledger_enc,
             }) => {
-                let ledger = &mut ctx.accounts.user_ledger;
+                let ledger = &mut ctx.accounts.user_ledger.load_mut()?;
                 ledger.balance_nonce = ledger_enc.nonce;
                 ledger.encrypted_balances = ledger_enc.ciphertexts;
                 ledger.last_update = Clock::get()?.unix_timestamp;
@@ -442,7 +442,7 @@ pub mod matching_engine {
                 let success = &field_0.field_1;
 
                 if *success {
-                    let ledger = &mut ctx.accounts.user_ledger;
+                    let ledger = &mut ctx.accounts.user_ledger.load_mut()?;
                     ledger.balance_nonce = ledger_enc.nonce;
                     ledger.encrypted_balances = ledger_enc.ciphertexts;
                     ledger.last_update = Clock::get()?.unix_timestamp;
@@ -461,7 +461,7 @@ pub mod matching_engine {
                     Ok(())
                 } else {
                     emit!(UserLedgerWithdrawVerifiedFailedEvent {
-                        user: ctx.accounts.user_ledger.owner,
+                        user: ctx.accounts.user_ledger.load()?.owner,
                     });
                     Ok(())
                 }
@@ -505,7 +505,7 @@ pub struct SubmitOrderCallback<'info> {
     #[account(mut)]
     pub orderbook_state: Box<Account<'info, OrderBookState>>,
     #[account(mut)]
-    pub user_ledger: Box<Account<'info, UserPrivateLedger>>,
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
     #[account(mut)]
     pub order_account: Box<Account<'info, OrderAccount>>,
 }
@@ -520,7 +520,7 @@ pub struct InitUserLedgerCallback<'info> {
     /// CHECK: instructions_sysvar
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
 }
 
 #[callback_accounts("execute_settlement")]
@@ -533,9 +533,9 @@ pub struct ExecuteSettlementCallback<'info> {
     /// CHECK: instructions_sysvar
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub user1_ledger: Account<'info, UserPrivateLedger>,
+    pub user1_ledger: AccountLoader<'info, UserPrivateLedger>,
     #[account(mut)]
-    pub user2_ledger: Account<'info, UserPrivateLedger>,
+    pub user2_ledger: AccountLoader<'info, UserPrivateLedger>,
 }
 
 #[callback_accounts("update_ledger_withdraw_verify")]
@@ -548,7 +548,7 @@ pub struct UpdateLedgerWithdrawVerifyCallback<'info> {
     /// CHECK: instructions_sysvar
     pub instructions_sysvar: AccountInfo<'info>,
     #[account(mut)]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
 }
 #[queue_computation_accounts("init_order_book", payer)]
 #[derive(Accounts)]
@@ -619,7 +619,7 @@ pub struct UpdateLedgerDepositCallback<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
 
     #[account(mut)]
-    pub user_ledger: Account<'info, UserPrivateLedger>,
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
 }
 
 #[event]
