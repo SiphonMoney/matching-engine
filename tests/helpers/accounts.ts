@@ -10,6 +10,18 @@ const VAULT_STATE_SEED = Buffer.from("vault_state");
 const ORDER_SEED = Buffer.from("order");
 const USER_LEDGER_SEED = Buffer.from("user_ledger");
 
+
+
+/**
+ * Derive OrderBookFlat PDA
+ */
+export function deriveOrderbook(
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from("order_book")], programId);
+}
+
+
 /**
  * Derive OrderBookState PDA
  */

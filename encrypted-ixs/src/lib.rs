@@ -6,6 +6,19 @@ mod circuits {
 
     pub const MAX_ORDERS: usize = 4;
     pub const MAX_MATCHES_PER_BATCH: usize = 4;
+    pub const POW64: u128 = 18446744073709551616;
+
+    pub const POWS_OF_256: [u128; 8] = [
+        1,
+        256,
+        65536,
+        16777216,
+        4294967296,
+        1099511627776,
+        281474976710656,
+        72057594037927936,
+    ];
+
 
     #[derive(Copy, Clone)]
     pub struct Order {
@@ -53,6 +66,210 @@ mod circuits {
             self.order_type == 1
         }
     }
+    // pub
+    // in each order there are 4 u64 and a u8
+    // so we will store 2u64 in a u128 and after stroing the u64's of all the orders in u128's 
+    // for each order we will require  2 u128's in this case we will require MAX_ORDERS * 2 * 2 = 4 * 2 = 8 u128's
+    // we will take the reamaining u8's of all the orders and store them in as many u128 we will require
+    // in this case that will be MAX_ORDERS * 2 *  8 = 4 * 2 * 8 = 64 so only one u128 will be required
+    #[derive(Copy, Clone)]
+    pub struct OrderBookFlat {
+        pub order_chunk1: u128,
+        pub order_chunk2: u128,
+        pub order_chunk3: u128,
+        pub order_chunk4: u128,
+        pub order_chunk5: u128,
+        pub order_chunk6: u128,
+        pub order_chunk7: u128,
+        pub order_chunk8: u128,
+        pub order_chunk9: u128,
+        pub order_chunk10: u128,
+        pub order_chunk11: u128,
+        pub order_chunk12: u128,
+        pub order_chunk13: u128,
+        pub order_chunk14: u128,
+        pub order_chunk15: u128,
+        pub order_chunk16: u128,
+        pub order_type_chunk: u128,
+        pub order_count: u128,
+    }
+
+    impl OrderBookFlat {
+        pub fn new() -> Self {
+            OrderBookFlat {
+                order_chunk1: 0,
+                order_chunk2: 0,
+                order_chunk3: 0,
+                order_chunk4: 0,
+                order_chunk5: 0,
+                order_chunk6: 0,
+                order_chunk7: 0,
+                order_chunk8: 0,
+                order_chunk9: 0,
+                order_chunk10: 0,
+                order_chunk11: 0,
+                order_chunk12: 0,
+                order_chunk13: 0,
+                order_chunk14: 0,
+                order_chunk15: 0,
+                order_chunk16: 0,
+                order_type_chunk: 0,
+                order_count: 0,
+            }
+        }
+
+        pub fn from_orderbook(orderbook: OrderBook) -> Self {
+            let mut order_chunk1: u128  = 0;
+            let mut order_chunk2: u128 = 0;
+            let mut order_chunk3: u128 = 0;
+            let mut order_chunk4: u128 = 0;
+            let mut order_chunk5: u128 = 0;
+            let mut order_chunk6: u128 = 0;
+            let mut order_chunk7: u128 = 0;
+            let mut order_chunk8: u128 = 0;
+            let mut order_chunk9: u128 = 0;
+            let mut order_chunk10: u128 = 0;
+            let mut order_chunk11: u128 = 0;
+            let mut order_chunk12: u128 = 0;
+            let mut order_chunk13: u128 = 0;
+            let mut order_chunk14: u128 = 0;
+            let mut order_chunk15: u128 = 0;
+            let mut order_chunk16: u128 = 0;
+            let mut order_type_chunk: u128 = 0;
+            let mut order_count: u128 = 0;
+
+            order_chunk1 += orderbook.buy_orders[0].order_id as u128;
+            order_chunk1 += orderbook.buy_orders[0].amount as u128 * POW64;
+            order_chunk2 += orderbook.buy_orders[0].price as u128;
+            order_chunk2 += orderbook.buy_orders[0].timestamp as u128 * POW64;
+
+            order_chunk3 +=orderbook.buy_orders[1].order_id as u128;
+            order_chunk3 += orderbook.buy_orders[1].amount as u128 * POW64;
+            order_chunk4 += orderbook.buy_orders[1].price as u128;
+            order_chunk4 += orderbook.buy_orders[1].timestamp as u128 * POW64;  
+
+            order_chunk5 += orderbook.buy_orders[2].order_id as u128;
+            order_chunk5 += orderbook.buy_orders[2].amount as u128 * POW64;
+            order_chunk6 += orderbook.buy_orders[2].price as u128;
+            order_chunk6 += orderbook.buy_orders[2].timestamp as u128 * POW64;  
+
+            order_chunk7 += orderbook.buy_orders[3].order_id as u128;
+            order_chunk7 += orderbook.buy_orders[3].amount as u128 * POW64;
+            order_chunk8 += orderbook.buy_orders[3].price as u128;
+            order_chunk8 += orderbook.buy_orders[3].timestamp as u128 * POW64;  
+
+            order_chunk9 += orderbook.sell_orders[0].order_id as u128;
+            order_chunk9 += orderbook.sell_orders[0].amount as u128 * POW64;
+            order_chunk10 += orderbook.sell_orders[0].price as u128;
+            order_chunk10 += orderbook.sell_orders[0].timestamp as u128 * POW64;  
+
+            order_chunk11 += orderbook.sell_orders[1].order_id as u128;
+            order_chunk11 += orderbook.sell_orders[1].amount as u128 * POW64;
+            order_chunk12 += orderbook.sell_orders[1].price as u128;
+            order_chunk12 += orderbook.sell_orders[1].timestamp as u128 * POW64;  
+
+            order_chunk13 += orderbook.sell_orders[2].order_id as u128;
+            order_chunk13 += orderbook.sell_orders[2].amount as u128 * POW64;
+            order_chunk14 += orderbook.sell_orders[2].price as u128;
+            order_chunk14 += orderbook.sell_orders[2].timestamp as u128 * POW64;  
+
+            order_chunk15 += orderbook.sell_orders[3].order_id as u128;
+            order_chunk15 += orderbook.sell_orders[3].amount as u128 * POW64;
+            order_chunk16 += orderbook.sell_orders[3].price as u128;
+            order_chunk16 += orderbook.sell_orders[3].timestamp as u128 * POW64;  
+
+            order_type_chunk += orderbook.buy_orders[0].order_type as u128 * POWS_OF_256[0];
+            order_type_chunk += orderbook.buy_orders[1].order_type as u128 * POWS_OF_256[1];
+            order_type_chunk += orderbook.buy_orders[2].order_type as u128 * POWS_OF_256[2]; 
+            order_type_chunk += orderbook.buy_orders[3].order_type as u128 * POWS_OF_256[3]; 
+            order_type_chunk += orderbook.sell_orders[0].order_type as u128 * POWS_OF_256[4];
+            order_type_chunk += orderbook.sell_orders[1].order_type as u128 * POWS_OF_256[5];
+            order_type_chunk += orderbook.sell_orders[2].order_type as u128 * POWS_OF_256[6]; 
+            order_type_chunk += orderbook.sell_orders[3].order_type as u128 * POWS_OF_256[7]; 
+
+            order_count += orderbook.buy_count as u128;
+            order_count += orderbook.sell_count as u128 * 256;
+
+            OrderBookFlat {
+                order_chunk1,
+                order_chunk2,
+                order_chunk3,
+                order_chunk4,
+                order_chunk5,
+                order_chunk6,
+                order_chunk7,
+                order_chunk8,
+                order_chunk9,
+                order_chunk10,
+                order_chunk11,
+                order_chunk12,
+                order_chunk13,
+                order_chunk14,
+                order_chunk15,
+                order_chunk16,
+                order_type_chunk,
+                order_count,
+            }
+        }
+    
+        pub fn to_orderbook(self) -> OrderBook {
+            let mut orderbook = OrderBook::new();
+
+            orderbook.buy_orders[0].order_id = self.order_chunk1 as u64;
+            orderbook.buy_orders[0].amount = (self.order_chunk1 / POW64) as u64;
+            orderbook.buy_orders[0].price = (self.order_chunk2 % POW64) as u64;
+            orderbook.buy_orders[0].timestamp = (self.order_chunk2 / POW64) as u64;
+
+            orderbook.buy_orders[1].order_id = self.order_chunk3 as u64;
+            orderbook.buy_orders[1].amount = (self.order_chunk3 / POW64) as u64;
+            orderbook.buy_orders[1].price = (self.order_chunk4 % POW64) as u64;
+            orderbook.buy_orders[1].timestamp = (self.order_chunk4 / POW64) as u64;
+
+            orderbook.buy_orders[2].order_id = self.order_chunk5 as u64;
+            orderbook.buy_orders[2].amount = (self.order_chunk5 / POW64) as u64;
+            orderbook.buy_orders[2].price = (self.order_chunk6 % POW64) as u64;
+            orderbook.buy_orders[2].timestamp = (self.order_chunk6 / POW64) as u64;
+            
+            orderbook.buy_orders[3].order_id = self.order_chunk7 as u64;
+            orderbook.buy_orders[3].amount = (self.order_chunk7 / POW64) as u64;
+            orderbook.buy_orders[3].price = (self.order_chunk8 % POW64) as u64;
+            orderbook.buy_orders[3].timestamp = (self.order_chunk8 / POW64) as u64;
+
+            orderbook.sell_orders[0].order_id = self.order_chunk9 as u64;
+            orderbook.sell_orders[0].amount = (self.order_chunk9 / POW64) as u64;
+            orderbook.sell_orders[0].price = (self.order_chunk10 % POW64) as u64;
+            orderbook.sell_orders[0].timestamp = (self.order_chunk10 / POW64) as u64;
+
+            orderbook.sell_orders[1].order_id = self.order_chunk11 as u64;
+            orderbook.sell_orders[1].amount = (self.order_chunk11 / POW64) as u64;
+            orderbook.sell_orders[1].price = (self.order_chunk12 % POW64) as u64;
+            orderbook.sell_orders[1].timestamp = (self.order_chunk12 / POW64) as u64;
+
+            orderbook.sell_orders[2].order_id = self.order_chunk13 as u64;
+            orderbook.sell_orders[2].amount = (self.order_chunk13 / POW64) as u64;
+            orderbook.sell_orders[2].price = (self.order_chunk14 % POW64) as u64;
+            orderbook.sell_orders[2].timestamp = (self.order_chunk14 / POW64) as u64;
+
+            orderbook.sell_orders[3].order_id = self.order_chunk15 as u64;
+            orderbook.sell_orders[3].amount = (self.order_chunk15 / POW64) as u64;
+            orderbook.sell_orders[3].price = (self.order_chunk16 % POW64) as u64;
+            orderbook.sell_orders[3].timestamp = (self.order_chunk16 / POW64) as u64;
+
+            for i in 0..MAX_ORDERS {
+                orderbook.buy_orders[i].order_type = (self.order_type_chunk / POWS_OF_256[i]) as u8;
+            }
+            for i in 0..MAX_ORDERS {
+                orderbook.sell_orders[i].order_type = (self.order_type_chunk / POWS_OF_256[i]) as u8;
+            }
+
+            // TODO: add these materaia
+
+            // orderbook.buy_count = (self.order_count % 256) as u8;
+            // orderbook.sell_count = (self.order_count / 256) as u8;
+            orderbook
+        }
+    }
+
     #[derive(Copy, Clone)]
     pub struct OrderBook {
         pub buy_orders: [Order; MAX_ORDERS],
@@ -291,9 +508,10 @@ mod circuits {
     }
 
     #[instruction]
-    pub fn init_order_book(mxe: Mxe) -> Enc<Mxe, OrderBook> {
+    pub fn init_order_book(mxe: Mxe) -> Enc<Mxe, OrderBookFlat> {
         let order_book = OrderBook::new();
-        mxe.from_arcis(order_book)
+        let order_book_flat = OrderBookFlat::from_orderbook(order_book);
+        mxe.from_arcis(order_book_flat)
     }
 
     #[instruction]
@@ -316,19 +534,21 @@ mod circuits {
     pub fn submit_order(
         user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
         user_ledger: Enc<Mxe, &Balances>,               // MXE
-        orderbook_ctx: Enc<Mxe, &OrderBook>,            // MXE
+        orderbook_ctx: Enc<Mxe, &OrderBookFlat>,            // MXE
         order_id: u64,
         order_type: u8,
         timestamp: u64,
     ) -> (
-        Enc<Mxe, OrderBook>,      // Updated orderbook
+        Enc<Mxe, OrderBookFlat>,      // Updated orderbook
         Enc<Mxe, Balances>,       // Updated ledger
         Enc<Shared, OrderStatus>, // For user to view
         bool,                     // Success
     ) {
         let sensitive = user_sensitive.to_arcis();
         let mut ledger = *(user_ledger.to_arcis());
-        let mut orderbook = *(orderbook_ctx.to_arcis());
+        let mut orderbook_flat = *(orderbook_ctx.to_arcis());
+
+        let mut orderbook = OrderBookFlat::to_orderbook(orderbook_flat);
 
         // Calculate required amount
         let required = if order_type == 0 {
@@ -409,7 +629,7 @@ mod circuits {
         };
 
         (
-            orderbook_ctx.owner.from_arcis(orderbook),
+            orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
             user_ledger.owner.from_arcis(ledger),
             user_sensitive.owner.from_arcis(status),
             success.reveal(),
@@ -419,9 +639,11 @@ mod circuits {
     #[instruction]
     pub fn match_orders(
         clanker_authority: Shared,
-        order_book_ctxt: Enc<Mxe, &OrderBook>,
-    ) -> (Enc<Mxe, OrderBook>, Enc<Shared, MatchResult>, u8) {
-        let mut order_book = *(order_book_ctxt.to_arcis());
+        order_book_ctxt: Enc<Mxe, OrderBookFlat>,
+    ) -> (Enc<Mxe, OrderBookFlat>, Enc<Shared, MatchResult>, u8) {
+        let mut orderbook_flat = order_book_ctxt.to_arcis();
+        let mut order_book = OrderBookFlat::to_orderbook(orderbook_flat);
+
         let mut result = MatchResult::empty();
 
         let mut match_count = 0u8;
@@ -474,7 +696,7 @@ mod circuits {
         result.num_matches = match_count;
 
         (
-            order_book_ctxt.owner.from_arcis(order_book),
+            order_book_ctxt.owner.from_arcis(OrderBookFlat::from_orderbook(order_book)),
             clanker_authority.from_arcis(result),
             match_count.reveal(),
         )

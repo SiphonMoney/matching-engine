@@ -11,6 +11,7 @@ const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY: u32 =
 // const COMP_DEF_OFFSET_UPDATE_SETTLEMENT: u32 = comp_def_offset("update_settlement");
 const COMP_DEF_OFFSET_INIT_USER_LEDGER: u32 = comp_def_offset("init_user_ledger");
 const COMP_DEF_OFFSET_EXECUTE_SETTLEMENT: u32 = comp_def_offset("execute_settlement");
+const MAX_ORDERS: usize = 4;
 declare_id!("3MSz7Kkyf6yXC1puWY8gofiPqCHPqYYMdMeZd3KYDi3y");
 
 pub mod instructions;
@@ -298,32 +299,32 @@ pub mod matching_engine {
         match &output {
             ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
                 let orderbook_enc = &field_0.field_0;
-                let ledger_enc = &field_0.field_1;
-                let status_enc = &field_0.field_2;
-                let success = field_0.field_3;
+                // let ledger_enc = &field_0.field_1;
+                // let status_enc = &field_0.field_2;
+                // let success = field_0.field_3;
 
                 // Update orderbook
-                let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
-                orderbook_state.orderbook_nonce = orderbook_enc.nonce;
-                orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                orderbook_state.total_orders_processed += 1;
+                // let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
+                // orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+                // orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
+                // orderbook_state.total_orders_processed += 1;
 
                 // Update user ledger
-                let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
-                user_ledger.balance_nonce = ledger_enc.nonce;
-                user_ledger.encrypted_balances = ledger_enc.ciphertexts;
-                user_ledger.last_update = Clock::get()?.unix_timestamp;
+                // let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
+                // user_ledger.balance_nonce = ledger_enc.nonce;
+                // user_ledger.encrypted_balances = ledger_enc.ciphertexts;
+                // user_ledger.last_update = Clock::get()?.unix_timestamp;
 
-                // Update order account
-                ctx.accounts.order_account.order_nonce = status_enc.nonce;
-                ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
+                // // Update order account
+                // ctx.accounts.order_account.order_nonce = status_enc.nonce;
+                // ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
 
-                emit!(OrderSubmittedEvent {
-                    order_id: ctx.accounts.order_account.order_id,
-                    user: ctx.accounts.order_account.user,
-                    success,
-                    timestamp: Clock::get()?.unix_timestamp,
-                });
+                // emit!(OrderSubmittedEvent {
+                //     order_id: ctx.accounts.order_account.order_id,
+                //     user: ctx.accounts.order_account.user,
+                //     success,
+                //     timestamp: Clock::get()?.unix_timestamp,
+                // });
 
                 Ok(())
             }

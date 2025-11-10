@@ -50,6 +50,7 @@ import {
   deriveVaultPDA,
   createATAAndMintTokens,
   deriveUserLedgerPDA,
+  deriveOrderbook,
 } from "./helpers/accounts";
 import {
   initSubmitOrderCompDef,
@@ -117,6 +118,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   let baseMint: PublicKey;
   let quoteMint: PublicKey;
   let OrderbookPDA: PublicKey;
+  let OrderbookflatPDA: PublicKey;
   let user1token1ATA: PublicKey;
   let user1token2ATA: PublicKey;
   let user2token1ATA: PublicKey;
@@ -294,7 +296,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
 
       // Fetch and verify account state
       const orderBookState = await getOrderBookState(program);
-      console.log("OrderBookState fetched:", orderBookState);
+      // console.log("OrderBookState fetched:", orderBookState);
 
       // Assertions
       expect(orderBookState).to.exist;
@@ -742,49 +744,54 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log("systemProgram", SystemProgram.programId.toBase58());
       console.log("arciumProgram", getArciumProgramId().toBase58());
       console.log("userLedger", userLedgerPDA.toBase58());
+      const [OrderbookflatPDA] = deriveOrderbook(program.programId);
+
       //accountinfo of userledger
       // console.log("userLedger account info", await program.account.userPrivateLedger.fetch(userLedgerPDA));
 
-    //   console.log("we are entering to initialize the encrypted orderbook");
+      console.log("we are entering to initialize the encrypted orderbook");
 
-    //   const initEncryptedOrderbookNonce = randomBytes(16);
+      const initEncryptedOrderbookNonce = randomBytes(16);
 
-    //   const initEncryptedOrderbookComputationOffset = new anchor.BN(randomBytes(8), "hex");
+      const initEncryptedOrderbookComputationOffset = new anchor.BN(randomBytes(8), "hex");
 
-    //   const initEncryptedOrderbookTx = await program.methods
-    //   .initEncryptedOrderbook(
-    //     initEncryptedOrderbookComputationOffset,
-    //     new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
-    //   )
-    //   .accounts({
-    //     computationAccount: getComputationAccAddress(
-    //       program.programId,
-    //       initEncryptedOrderbookComputationOffset
-    //     ),
-    //     payer: authority.publicKey,
-    //     mxeAccount: getMXEAccAddress(program.programId),
-    //     mempoolAccount: getMempoolAccAddress(program.programId),
-    //     executingPool: getExecutingPoolAccAddress(program.programId),
-    //     compDefAccount: getCompDefAccAddress(
-    //       program.programId,
-    //       Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
-    //     ),  
-    //     clusterAccount: clusterAccount,
-    //     orderbookState: OrderbookPDA,
-    //   })
-    //   .signers([authority])
-    //   .rpc({ commitment: "confirmed" });
+      const initEncryptedOrderbookTx = await program.methods
+      .initEncryptedOrderbook(
+        initEncryptedOrderbookComputationOffset,
+        new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
+      )
+      .accounts({
+        computationAccount: getComputationAccAddress(
+          program.programId,
+          initEncryptedOrderbookComputationOffset
+        ),
+        payer: authority.publicKey,
+        mxeAccount: getMXEAccAddress(program.programId),
+        mempoolAccount: getMempoolAccAddress(program.programId),
+        executingPool: getExecutingPoolAccAddress(program.programId),
+        compDefAccount: getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
+        ),  
+        clusterAccount: clusterAccount,
+        orderbookState: OrderbookPDA,
+      })
+      .signers([authority])
+      .rpc({ commitment: "confirmed" });
 
-    // console.log("Encrypted orderbook initialized with signature:", initEncryptedOrderbookTx);
+    console.log("Encrypted orderbook initialized with signature:", initEncryptedOrderbookTx);
 
-    // // Wait for initGame computation finalization
-    // const initEncryptedOrderbookFinalizeSig = await awaitComputationFinalization(
-    //   provider as anchor.AnchorProvider,
-    //   initEncryptedOrderbookComputationOffset,
-    //   program.programId,
-    //   "confirmed"
-    // );
-    // console.log("Init game finalize signature:", initEncryptedOrderbookFinalizeSig);
+    // Wait for initGame computation finalization
+    const initEncryptedOrderbookFinalizeSig = await awaitComputationFinalization(
+      provider as anchor.AnchorProvider,
+      initEncryptedOrderbookComputationOffset,
+      program.programId,
+      "confirmed"
+    );
+    console.log("Init game finalize signature:", initEncryptedOrderbookFinalizeSig);
+
+    const orderBookStatenew = await getOrderBookState(program);
+    console.log("orderBookState new", orderBookStatenew);
   
 
       // initlialize a user ledger and then deposit to the ledger
@@ -927,8 +934,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       const submitOrderComputationOffset = new anchor.BN(randomBytes(8), "hex");
 
       // 3. Read initial nonce
-      const before = await getOrderBookState(program);
-      const initialNonce = before.orderBookNonce;
+      // const before = await getOrderBookState(program);
+      // const initialNonce = before.orderBookNonce;
 
       const orderId = 12;
 
@@ -977,6 +984,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
           submitOrderComputationOffset
         ).toBase58()
       );
+      
 
     //   console.log("we are entering to initialize the encrypted orderbook");
 
@@ -1034,64 +1042,71 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       );
       console.log("user ledger account info", info2);
 
+      const User1Nonce = randomBytes(16);
+      const User1Ciphertext = User1Cipher.encrypt(
+        [BigInt(amount), BigInt(price)],
+        User1Nonce
+      );
+
+
 
       console.log("before the submit order===============================================================================");
 
       // 5. Submit order
-      // const tx = await program.methods
-      //   .submitOrder(
-      //     Array.from(User1Ciphertext[0]),
-      //     Array.from(User1Ciphertext[1]),
-      //     Array.from(User1PublicKey),
-      //     0, // buy
-      //     submitOrderComputationOffset,
-      //     new anchor.BN(orderId),
-      //     new anchor.BN(deserializeLE(User1Nonce).toString())
-      //   )
-      // .accountsPartial({
-      //   computationAccount: getComputationAccAddress(
-      //     program.programId,
-      //     submitOrderComputationOffset
-      //   ),
-      //   user: user1.publicKey,
-      //   // signPdaAccount: deriveSignerAccountPDA(program.programId),
-      //   // poolAccount: deriveArciumFeePoolAccountAddress(),
-      //   clusterAccount: clusterAccount,
-      //   mxeAccount: getMXEAccAddress(program.programId),
-      //   mempoolAccount: getMempoolAccAddress(program.programId),
-      //   executingPool: getExecutingPoolAccAddress(program.programId),
-      //   compDefAccount: getCompDefAccAddress(
-      //     program.programId,
-      //     Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
-      //   ),
-      //   // clockAccount: getClockAccAddress(),
-      //   systemProgram: SystemProgram.programId,
-      //   arciumProgram: getArciumProgramId(),
-      //   baseMint: baseMint,
-      //   vault: baseVaultPDA,
-      //   orderAccount: orderAccountPDA,
-      //   orderbookState: OrderbookPDA,
-      //   userLedger: userLedgerPDA,
-      // })
-      // .signers([user1])
-      // .rpc({ commitment: "confirmed" });
+      const tx = await program.methods
+        .submitOrder(
+          Array.from(User1Ciphertext[0]),
+          Array.from(User1Ciphertext[1]),
+          Array.from(User1PublicKey),
+          0, // buy
+          submitOrderComputationOffset,
+          new anchor.BN(orderId),
+          new anchor.BN(deserializeLE(User1Nonce).toString())
+        )
+      .accountsPartial({
+        computationAccount: getComputationAccAddress(
+          program.programId,
+          submitOrderComputationOffset
+        ),
+        user: user1.publicKey,
+        // signPdaAccount: deriveSignerAccountPDA(program.programId),
+        // poolAccount: deriveArciumFeePoolAccountAddress(),
+        clusterAccount: clusterAccount,
+        mxeAccount: getMXEAccAddress(program.programId),
+        mempoolAccount: getMempoolAccAddress(program.programId),
+        executingPool: getExecutingPoolAccAddress(program.programId),
+        compDefAccount: getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
+        ),
+        // clockAccount: getClockAccAddress(),
+        systemProgram: SystemProgram.programId,
+        arciumProgram: getArciumProgramId(),
+        baseMint: baseMint,
+        vault: baseVaultPDA,
+        orderAccount: orderAccountPDA,
+        orderbookState: OrderbookPDA,
+        userLedger: userLedgerPDA,
+      })
+      .signers([user1])
+      .rpc({ commitment: "confirmed" });
 
-      // console.log("tx", tx);
+      console.log("tx", tx);
 
-      // const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
-      // console.log("order account info",info3);
+      const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
+      console.log("order account info",info3);
 
-      // // 6. Wait for MPC finalization
-      // await awaitComputationFinalization(
-      //   provider,
-      //   submitOrderComputationOffset,
-      //   program.programId,
-      //   "confirmed"
-      // );
+      // 6. Wait for MPC finalization
+      await awaitComputationFinalization(
+        provider,
+        submitOrderComputationOffset,
+        program.programId,
+        "confirmed"
+      );
 
-      // console.log(
-      //   "=============== Order submitted successfully ==============="
-      // );
+      console.log(
+        "=============== Order submitted successfully ==============="
+      );
       // console.log("waiting for event");
       // // 7. Get event
       // // const event = await eventPromise;

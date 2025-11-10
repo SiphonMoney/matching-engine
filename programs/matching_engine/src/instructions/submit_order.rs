@@ -10,7 +10,6 @@ use arcium_anchor::prelude::*;
 use arcium_client::idl::arcium::types::CallbackAccount;
 
 const VAULT_SEED: &[u8] = b"vault";
-const ORDERBOOK_SEED: &[u8] = b"order_book_state";
 
 use crate::ID;
 use crate::ID_CONST;
@@ -61,7 +60,7 @@ pub fn submit_order(
         Argument::Account(
             ctx.accounts.orderbook_state.key(),
             8 + 32,      // Offset: discriminator(8) + authority(32) = 40
-            42 * 32,     // Size: 42 chunks × 32 bytes = 1344 bytes
+            18 * 32,     // Size: 18 chunks × 32 bytes = 576 bytes
         ),
 
         Argument::PlaintextU64(order_id),
