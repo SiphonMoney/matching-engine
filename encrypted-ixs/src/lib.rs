@@ -538,12 +538,14 @@ mod circuits {
         order_id: u64,
         order_type: u8,
         timestamp: u64,
-    ) -> (
-        // Enc<Mxe, OrderBookFlat>,      // Updated orderbook
-        Enc<Shared, Balances>,       // Updated ledger
-        Enc<Shared, OrderStatus>, // For user to view
-        bool,                     // Success
-    ) {
+    // ) -> (
+    //     Enc<Mxe, OrderBookFlat>,      // Updated orderbook
+    //     Enc<Shared, Balances>,       // Updated ledger
+    //     Enc<Shared, OrderStatus>, // For user to view
+    //     bool,                     // Success
+    // ) {
+    ) -> Enc<Mxe, OrderBookFlat>
+    {
         let sensitive = user_sensitive.to_arcis();
         let mut ledger = *(user_ledger.to_arcis());
         let mut orderbook_flat = *(orderbook_ctx.to_arcis());
@@ -628,12 +630,13 @@ mod circuits {
             }
         };
 
-        (
-            // orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
-            user_ledger.owner.from_arcis(ledger),
-            user_sensitive.owner.from_arcis(status),
-            success.reveal(),
-        )
+        // (
+        //     orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
+        //     user_ledger.owner.from_arcis(ledger),
+        //     user_sensitive.owner.from_arcis(status),
+        //     success.reveal(),
+        // )
+        orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook))
     }
 
     #[instruction]

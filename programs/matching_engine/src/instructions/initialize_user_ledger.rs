@@ -48,6 +48,7 @@ pub fn initialize_user_ledger(
             pubkey: ctx.accounts.user_ledger.key(),
             is_writable: true,
         }])],
+        1,
     )?;
 
     msg!("User ledger initialized for {}", ctx.accounts.user.key());
@@ -83,7 +84,10 @@ pub struct InitializeUserLedger<'info> {
     pub computation_account: UncheckedAccount<'info>,
     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_USER_LEDGER))]
     pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
-    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    #[account(
+        mut,
+        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
+    )]
     pub cluster_account: Box<Account<'info, Cluster>>,
     #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
     pub pool_account: Box<Account<'info, FeePool>>,

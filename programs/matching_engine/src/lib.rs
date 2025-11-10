@@ -12,7 +12,7 @@ const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY: u32 =
 const COMP_DEF_OFFSET_INIT_USER_LEDGER: u32 = comp_def_offset("init_user_ledger");
 const COMP_DEF_OFFSET_EXECUTE_SETTLEMENT: u32 = comp_def_offset("execute_settlement");
 const MAX_ORDERS: usize = 4;
-declare_id!("3MSz7Kkyf6yXC1puWY8gofiPqCHPqYYMdMeZd3KYDi3y");
+declare_id!("AEzijpcr55b6xPtNHXqN57B8BoXbAeHjsLNKo6g4pYPh");
 
 pub mod instructions;
 pub mod states;
@@ -32,28 +32,28 @@ pub mod matching_engine {
     use crate::errors::ErrorCode;
 
     pub fn init_user_ledger_comp_def(ctx: Context<InitializeUserLedgerCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
     pub fn init_execute_settlement_comp_def(
         ctx: Context<InitExecuteSettlementCompDef>,
     ) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
     pub fn init_update_ledger_withdraw_verify_comp_def(
         ctx: Context<InitUpdateLedgerWithdrawVerifyCompDef>,
     ) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
     pub fn init_update_ledger_deposit_comp_def(
         ctx: Context<InitUpdateLedgerDepositCompDef>,
     ) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
@@ -75,17 +75,17 @@ pub mod matching_engine {
     }
 
     pub fn init_submit_order_comp_def(ctx: Context<InitSubmitOrderCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
     pub fn init_match_orders_comp_def(ctx: Context<InitMatchOrdersCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
     pub fn init_order_book_comp_def(ctx: Context<InitOrderBookCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        init_comp_def(ctx.accounts, 0, None, None)?;
         Ok(())
     }
 
@@ -120,11 +120,13 @@ pub mod matching_engine {
                 pubkey: ctx.accounts.orderbook_state.key(),
                 is_writable: true,
             }])],
+            1,
         )?;
         Ok(())
     }
 
     #[arcium_callback(encrypted_ix = "init_order_book", network = "localnet")]
+    #[inline(never)]
     pub fn init_order_book_callback(
         ctx: Context<InitOrderBookCallback>,
         output: ComputationOutputs<InitOrderBookOutput>,
@@ -179,6 +181,7 @@ pub mod matching_engine {
     }
 
     #[arcium_callback(encrypted_ix = "match_orders", network = "localnet")]
+    #[inline(never)]
     pub fn match_orders_callback(
         ctx: Context<MatchOrdersCallback>,
         output: ComputationOutputs<MatchOrdersOutput>,
@@ -259,6 +262,7 @@ pub mod matching_engine {
     }
 
     #[arcium_callback(encrypted_ix = "submit_order", network = "localnet")]
+    #[inline(never)]
     pub fn submit_order_callback(
         ctx: Context<SubmitOrderCallback>,
         output: ComputationOutputs<SubmitOrderOutput>,
@@ -266,6 +270,7 @@ pub mod matching_engine {
         process_submit_order_result(ctx, output)
     }
 
+    #[inline(never)]
     pub fn execute_settlement_callback(
         ctx: Context<ExecuteSettlementCallback>,
         output: ComputationOutputs<ExecuteSettlementOutput>,
@@ -296,40 +301,52 @@ pub mod matching_engine {
         ctx: Context<SubmitOrderCallback>,
         output: ComputationOutputs<SubmitOrderOutput>,
     ) -> Result<()> {
-        match &output {
-            ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
-                // let orderbook_enc = &field_0.field_0;
-                let ledger_enc = &field_0.field_0;
-                let status_enc = &field_0.field_1;
-                let success = field_0.field_2;
+        // match &output {
+        //     ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
+        //         let orderbook_enc = &field_0.field_0;
+        //         let ledger_enc = &field_0.field_1;
+        //         let status_enc = &field_0.field_2;
+        //         let success = field_0.field_3;
 
-                // Update orderbook
-                // let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
-                // orderbook_state.orderbook_nonce = orderbook_enc.nonce;
-                // orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                // orderbook_state.total_orders_processed += 1;
+        //         // Update orderbook
+        //         let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
+        //         orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+        //         orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
+        //         orderbook_state.total_orders_processed += 1;
 
-                // Update user ledger
-                let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
-                user_ledger.balance_nonce = ledger_enc.nonce;
-                user_ledger.encrypted_balances = ledger_enc.ciphertexts;
-                user_ledger.last_update = Clock::get()?.unix_timestamp;
+        //         // Update user ledger
+        //         let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
+        //         user_ledger.balance_nonce = ledger_enc.nonce;
+        //         user_ledger.encrypted_balances = ledger_enc.ciphertexts;
+        //         user_ledger.last_update = Clock::get()?.unix_timestamp;
 
-                // Update order account
-                ctx.accounts.order_account.order_nonce = status_enc.nonce;
-                ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
+        //         // Update order account
+        //         ctx.accounts.order_account.order_nonce = status_enc.nonce;
+        //         ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
 
-                emit!(OrderSubmittedEvent {
-                    order_id: ctx.accounts.order_account.order_id,
-                    user: ctx.accounts.order_account.user,
-                    success,
-                    timestamp: Clock::get()?.unix_timestamp,
-                });
+        //         emit!(OrderSubmittedEvent {
+        //             order_id: ctx.accounts.order_account.order_id,
+        //             user: ctx.accounts.order_account.user,
+        //             success,
+        //             timestamp: Clock::get()?.unix_timestamp,
+        //         });
 
-                Ok(())
-            }
-            _ => Err(ErrorCode::AbortedComputation.into()),
-        }
+        //         Ok(())
+        //     }
+        //     _ => Err(ErrorCode::AbortedComputation.into()),
+        // }
+        let orderbook_enc = match &output {
+            ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => field_0,
+            _ => return Err(ErrorCode::AbortedComputation.into()),
+        };
+
+        // Copy orderbook data
+        let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
+        orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+        orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
+
+        msg!("Orderbook initialized");
+        Ok(())
     }
 
     pub fn withdraw_from_ledger_verify(
@@ -369,6 +386,7 @@ pub mod matching_engine {
     }
 
     #[arcium_callback(encrypted_ix = "update_ledger_deposit", network = "localnet")]
+    #[inline(never)]
     pub fn update_ledger_deposit_callback(
         ctx: Context<UpdateLedgerDepositCallback>,
         output: ComputationOutputs<UpdateLedgerDepositOutput>,
@@ -398,6 +416,7 @@ pub mod matching_engine {
     }
 
     #[arcium_callback(encrypted_ix = "init_user_ledger", network = "localnet")]
+    #[inline(never)]
     pub fn init_user_ledger_callback(
         ctx: Context<InitUserLedgerCallback>,
         output: ComputationOutputs<InitUserLedgerOutput>,
@@ -429,6 +448,7 @@ pub mod matching_engine {
         }
     }
 
+    #[inline(never)]
     pub fn update_ledger_withdraw_verify_callback(
         ctx: Context<UpdateLedgerWithdrawVerifyCallback>,
         output: ComputationOutputs<UpdateLedgerWithdrawVerifyOutput>,
@@ -575,7 +595,10 @@ pub struct InitEncryptedOrderbook<'info> {
     pub computation_account: UncheckedAccount<'info>,
     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_ORDER_BOOK))]
     pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
-    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    #[account(
+        mut,
+        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
+    )]
     pub cluster_account: Box<Account<'info, Cluster>>,
     #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
     pub pool_account: Box<Account<'info, FeePool>>,

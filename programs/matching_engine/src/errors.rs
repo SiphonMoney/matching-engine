@@ -20,4 +20,8 @@ pub enum ErrorCode {
     UnauthorizedSettlement,
     #[msg("Not approved")]
     NotApproved,
+    // #[msg("The computation was aborted")]
+    // AbortedComputation,
+    // #[msg("Cluster not set")]
+    // ClusterNotSet,
 }

@@ -56,6 +56,7 @@ pub fn execute_settlement(
                 is_writable: true,
             },
         ])],
+        1,
     )?;
 
     Ok(())
@@ -98,7 +99,10 @@ pub struct ExecuteSettlement<'info> {
     pub computation_account: UncheckedAccount<'info>,
     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_EXECUTE_SETTLEMENT))]
     pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
-    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    #[account(
+        mut,
+        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
+    )]
     pub cluster_account: Box<Account<'info, Cluster>>,
     #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
     pub pool_account: Box<Account<'info, FeePool>>,

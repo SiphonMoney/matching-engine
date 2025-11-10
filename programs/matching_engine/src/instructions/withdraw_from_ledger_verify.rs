@@ -53,6 +53,7 @@ pub fn withdraw_from_ledger_verify(
                 is_writable: true,
             },
         ])],
+        1,
     )?;
 
     Ok(())
@@ -99,7 +100,10 @@ pub struct WithdrawFromLedgerVerify<'info> {
     #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY))]
     pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
     
-    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    #[account(
+        mut,
+        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
+    )]
     pub cluster_account: Box<Account<'info, Cluster>>,
     
     #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
