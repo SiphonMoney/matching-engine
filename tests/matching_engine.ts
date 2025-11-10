@@ -65,7 +65,7 @@ import { MatchingEngine } from "../target/types/matching_engine";
 import MatchingEngineIDL from "../target/idl/matching_engine.json";
 
 
-describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
+describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
   const useDevnet = false;
 
   const authority = readKpJson(`${os.homedir()}/.config/solana/id.json`);
@@ -127,9 +127,22 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
   let ata2: PublicKey;
   let ata3: PublicKey;
   let ata4: PublicKey;
+  let User1Cipher: RescueCipher;
+  let User1SharedSecret: Uint8Array;
 
   const User1PrivateKey = x25519.utils.randomSecretKey();
   const User1PublicKey = x25519.getPublicKey(User1PrivateKey);
+
+  // mxePublicKey = await getMXEPublicKeyWithRetry(
+  //   provider as anchor.AnchorProvider,
+  //   program.programId
+  // );
+
+  // User1SharedSecret = x25519.getSharedSecret(
+  //   User1PrivateKey,
+  //   mxePublicKey
+  // );
+  // User1Cipher = new RescueCipher(User1SharedSecret);
 
   // Event helper
   type Event = anchor.IdlEvents<(typeof program)["idl"]>;
@@ -1107,6 +1120,20 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
       console.log(
         "=============== Order submitted successfully ==============="
       );
+
+
+      //fetch the userledger and check the balances by decrypting the encrypted balances
+      const userLedger = await program.account.userPrivateLedger.fetch(userLedgerPDA);
+      console.log("user ledger", userLedger);
+
+      const thisnonce = Uint8Array.from(
+        userLedger.balanceNonce.toArray("le", 16)
+      );
+      const userLedgerBalances = User1Cipher.decrypt(
+        [...userLedger.encryptedBalances],
+        thisnonce
+      );
+      console.log("user ledger balances", userLedgerBalances);
       // console.log("waiting for event");
       // // 7. Get event
       // // const event = await eventPromise;
@@ -1595,6 +1622,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", () => {
             [...withdrawVerifyEvent.encryptedBalances],
             withdrawVerifyEventNonce
           );
+
+          console.log("user balances", userBalances);
 
 
         } else {

@@ -533,14 +533,14 @@ mod circuits {
     #[instruction]
     pub fn submit_order(
         user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
-        user_ledger: Enc<Mxe, &Balances>,               // MXE
+        user_ledger: Enc<Shared, &Balances>,               // Shared
         orderbook_ctx: Enc<Mxe, &OrderBookFlat>,            // MXE
         order_id: u64,
         order_type: u8,
         timestamp: u64,
     ) -> (
-        Enc<Mxe, OrderBookFlat>,      // Updated orderbook
-        Enc<Mxe, Balances>,       // Updated ledger
+        // Enc<Mxe, OrderBookFlat>,      // Updated orderbook
+        Enc<Shared, Balances>,       // Updated ledger
         Enc<Shared, OrderStatus>, // For user to view
         bool,                     // Success
     ) {
@@ -574,7 +574,7 @@ mod circuits {
         }
 
         // Lock funds
-        if order_type == 0 {
+        if order_type == 1 {
             ledger.quote_available -= required;
             // Note: We don't track locked separately in this simplified version
             // In production, you'd have base_locked and quote_locked fields
@@ -629,7 +629,7 @@ mod circuits {
         };
 
         (
-            orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
+            // orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
             user_ledger.owner.from_arcis(ledger),
             user_sensitive.owner.from_arcis(status),
             success.reveal(),

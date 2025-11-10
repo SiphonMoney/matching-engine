@@ -47,7 +47,8 @@ pub fn submit_order(
         Argument::EncryptedU64(amount), // Client encrypts this
         Argument::EncryptedU64(price),  // Client encrypts this
 
-        // Enc<Mxe, Balances>
+        // Enc<Shared, Balances>
+        Argument::ArcisPubkey(user_pubkey),
         Argument::PlaintextU128(user_ledger.balance_nonce),
         Argument::Account(
             ctx.accounts.user_ledger.key(),
