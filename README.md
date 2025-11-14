@@ -16,7 +16,7 @@ Traditional on-chain DEXs expose all order details, balances, and trading activi
 Unlike traditional privacy systems where balances are completely opaque, this protocol uses **dual-encryption architecture**:
 
 - **For User Balances**: `Enc<Shared, Balances>` - Both user AND MPC can decrypt
-- **For Order Details**: `Enc<Mxe, Balances>` - Only MPC can decrypt
+- **For Order Details**: `Enc<Shared, Balances>` - Only user can decrypt
 
 This means users can query and verify their encrypted balances at any time, while order details remain completely private.
 
