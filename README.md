@@ -239,9 +239,9 @@ STEP 2: Cranker Execution
 ## Prerequisites
 
 - **Rust** 1.75+ with Solana toolchain
-- **Solana CLI** 1.18+
+- **Solana CLI** 2.2.0 (required for local testing)
 - **Anchor Framework** 0.31.1
-- **Arcium CLI** - For MPC network interaction
+- **Arcium CLI** 0.3 (required for local testing)
 - **Node.js** 18+ with Yarn package manager
 
 ## Installation
@@ -271,6 +271,21 @@ arcium localnet
 
 
 ## Testing
+
+### Prerequisites for Local Testing
+
+Before running tests locally, ensure you have the correct versions installed:
+
+- **Solana CLI 2.2.0** - Required for local validator compatibility
+- **Arcium CLI 0.3** - Required for MPC network localnet
+
+To verify your versions:
+```bash
+solana --version  # Should show 2.2.0
+arcium --version  # Should show 0.3.x
+```
+
+### Running Tests
 
 Run the comprehensive test suite:
 
