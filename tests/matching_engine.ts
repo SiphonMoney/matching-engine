@@ -64,8 +64,7 @@ import {
 import { MatchingEngine } from "../target/types/matching_engine";
 import MatchingEngineIDL from "../target/idl/matching_engine.json";
 
-
-describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
+describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
   const useDevnet = false;
 
   const authority = readKpJson(`${os.homedir()}/.config/solana/id.json`);
@@ -89,7 +88,10 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
       provider
     );
     clusterAccount = getClusterAccAddress(1078779259); // Use your cluster offset
-    console.log("==================================================================================================================================:", clusterAccount.toBase58());
+    console.log(
+      "==================================================================================================================================:",
+      clusterAccount.toBase58()
+    );
   } else {
     // Local configuration
     anchor.setProvider(anchor.AnchorProvider.env());
@@ -99,7 +101,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
     clusterAccount = arciumEnv.arciumClusterPubkey;
     // clusterAccount = getClusterAccAddress(1078779259);
   }
-
 
   // Configure the client to use the local cluster
   // anchor.setProvider(anchor.AnchorProvider.env());
@@ -197,10 +198,15 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
       await airdrop(provider, mintAuthority.publicKey, 100 * LAMPORTS_PER_SOL);
     }
 
-
-    const mintAuthorityBalance = await provider.connection.getBalance(mintAuthority.publicKey);
+    const mintAuthorityBalance = await provider.connection.getBalance(
+      mintAuthority.publicKey
+    );
     const user1Balance = await provider.connection.getBalance(user1.publicKey);
-    console.log("MintAuthority balance:", mintAuthorityBalance / LAMPORTS_PER_SOL, "SOL");
+    console.log(
+      "MintAuthority balance:",
+      mintAuthorityBalance / LAMPORTS_PER_SOL,
+      "SOL"
+    );
     console.log("User1 balance:", user1Balance / LAMPORTS_PER_SOL, "SOL");
 
     // make two different tokens with same authority and then mint those tokens to both the users
@@ -738,104 +744,126 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
         "userLedgerInitializedEvent"
       );
 
-      console.log("initializing user ledger=======================================================");
+      console.log(
+        "initializing user ledger======================================================="
+      );
       // list all the accounts that are needed for the initialize user ledger instruction
       console.log("accounts needed for the initialize user ledger instruction");
-      console.log("computationAccount", getComputationAccAddress(
-        program.programId,
-        InitUserLedgerComputationOffset
-      ));
+      console.log(
+        "computationAccount",
+        getComputationAccAddress(
+          program.programId,
+          InitUserLedgerComputationOffset
+        )
+      );
       console.log("user", user1.publicKey.toBase58());
       console.log("clusterAccount", clusterAccount.toBase58());
       console.log("mxeAccount", getMXEAccAddress(program.programId).toBase58());
-      console.log("mempoolAccount", getMempoolAccAddress(program.programId).toBase58());
-      console.log("executingPool", getExecutingPoolAccAddress(program.programId).toBase58());
-      console.log("compDefAccount", getCompDefAccAddress(
-        program.programId,
-        Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
-      ).toBase58());
+      console.log(
+        "mempoolAccount",
+        getMempoolAccAddress(program.programId).toBase58()
+      );
+      console.log(
+        "executingPool",
+        getExecutingPoolAccAddress(program.programId).toBase58()
+      );
+      console.log(
+        "compDefAccount",
+        getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
+        ).toBase58()
+      );
       console.log("systemProgram", SystemProgram.programId.toBase58());
       console.log("arciumProgram", getArciumProgramId().toBase58());
       console.log("userLedger", userLedgerPDA.toBase58());
       const [OrderbookflatPDA] = deriveOrderbook(program.programId);
 
-      //accountinfo of userledger
-      // console.log("userLedger account info", await program.account.userPrivateLedger.fetch(userLedgerPDA));
-
       console.log("we are entering to initialize the encrypted orderbook");
 
       const initEncryptedOrderbookNonce = randomBytes(16);
 
-      const initEncryptedOrderbookComputationOffset = new anchor.BN(randomBytes(8), "hex");
+      const initEncryptedOrderbookComputationOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
+      );
 
       const initEncryptedOrderbookTx = await program.methods
-      .initEncryptedOrderbook(
-        initEncryptedOrderbookComputationOffset,
-        new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
-      )
-      .accounts({
-        computationAccount: getComputationAccAddress(
-          program.programId,
-          initEncryptedOrderbookComputationOffset
-        ),
-        payer: authority.publicKey,
-        mxeAccount: getMXEAccAddress(program.programId),
-        mempoolAccount: getMempoolAccAddress(program.programId),
-        executingPool: getExecutingPoolAccAddress(program.programId),
-        compDefAccount: getCompDefAccAddress(
-          program.programId,
-          Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
-        ),  
-        clusterAccount: clusterAccount,
-        orderbookState: OrderbookPDA,
-      })
-      .signers([authority])
-      .rpc({ commitment: "confirmed" });
-
-    console.log("Encrypted orderbook initialized with signature:", initEncryptedOrderbookTx);
-
-    // Wait for initGame computation finalization
-    const initEncryptedOrderbookFinalizeSig = await awaitComputationFinalization(
-      provider as anchor.AnchorProvider,
-      initEncryptedOrderbookComputationOffset,
-      program.programId,
-      "confirmed"
-    );
-    console.log("Init game finalize signature:", initEncryptedOrderbookFinalizeSig);
-
-    const orderBookStatenew = await getOrderBookState(program);
-    console.log("orderBookState new", orderBookStatenew);
-  
-
-      // initlialize a user ledger and then deposit to the ledger
-
-      try {
-      await program.methods
-        .initializeUserLedger(
-          Array.from(User1PublicKey),
-          new anchor.BN(deserializeLE(userLedgerNonce).toString()),
-          InitUserLedgerComputationOffset
+        .initEncryptedOrderbook(
+          initEncryptedOrderbookComputationOffset,
+          new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
         )
-        .accountsPartial({
+        .accounts({
           computationAccount: getComputationAccAddress(
             program.programId,
-            InitUserLedgerComputationOffset
+            initEncryptedOrderbookComputationOffset
           ),
-          user: user1.publicKey,
-          clusterAccount: clusterAccount,
+          payer: authority.publicKey,
           mxeAccount: getMXEAccAddress(program.programId),
           mempoolAccount: getMempoolAccAddress(program.programId),
           executingPool: getExecutingPoolAccAddress(program.programId),
           compDefAccount: getCompDefAccAddress(
             program.programId,
-            Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
+            Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
           ),
-          systemProgram: SystemProgram.programId,
-          arciumProgram: getArciumProgramId(),
-          userLedger: userLedgerPDA,
+          clusterAccount: clusterAccount,
+          orderbookState: OrderbookPDA,
         })
-        .signers([user1])
+        .signers([authority])
         .rpc({ commitment: "confirmed" });
+
+      console.log(
+        "Encrypted orderbook initialized with signature:",
+        initEncryptedOrderbookTx
+      );
+
+      // Wait for initGame computation finalization
+      const initEncryptedOrderbookFinalizeSig =
+        await awaitComputationFinalization(
+          provider as anchor.AnchorProvider,
+          initEncryptedOrderbookComputationOffset,
+          program.programId,
+          "confirmed"
+        );
+      console.log(
+        "Init game finalize signature:",
+        initEncryptedOrderbookFinalizeSig
+      );
+
+      const orderBookStatenew = await getOrderBookState(program);
+      console.log("orderBookState new", orderBookStatenew);
+
+      // initlialize a user ledger and then deposit to the ledger
+
+      try {
+        await program.methods
+          .initializeUserLedger(
+            Array.from(User1PublicKey),
+            new anchor.BN(deserializeLE(userLedgerNonce).toString()),
+            InitUserLedgerComputationOffset
+          )
+          .accountsPartial({
+            computationAccount: getComputationAccAddress(
+              program.programId,
+              InitUserLedgerComputationOffset
+            ),
+            user: user1.publicKey,
+            clusterAccount: clusterAccount,
+            mxeAccount: getMXEAccAddress(program.programId),
+            mempoolAccount: getMempoolAccAddress(program.programId),
+            executingPool: getExecutingPoolAccAddress(program.programId),
+            compDefAccount: getCompDefAccAddress(
+              program.programId,
+              Buffer.from(
+                getCompDefAccOffset("init_user_ledger")
+              ).readUInt32LE()
+            ),
+            systemProgram: SystemProgram.programId,
+            arciumProgram: getArciumProgramId(),
+            userLedger: userLedgerPDA,
+          })
+          .signers([user1])
+          .rpc({ commitment: "confirmed" });
       } catch (error) {
         const log = await error.getLogs();
         console.log("log", log);
@@ -927,11 +955,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
         "userBalances==============================================================>",
         userBalances
       );
-      // expect(userBalances[0]).to.equal(new BN(100).toString());
-      // expect(userBalances[1]).to.equal(new BN(100).toString());
-      // expect(userBalances[2]).to.equal(new BN(0).toString());
-      // expect(userBalances[3]).to.equal(new BN(0).toString());
-
       // check if the vault does have the correct amount of tokens
       const vaultInfo = await getAccount(provider.connection, baseVaultPDA);
       console.log("vault info", vaultInfo);
@@ -945,10 +968,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
       const amount = 10;
       const price = 5;
       const submitOrderComputationOffset = new anchor.BN(randomBytes(8), "hex");
-
-      // 3. Read initial nonce
-      // const before = await getOrderBookState(program);
-      // const initialNonce = before.orderBookNonce;
 
       const orderId = 12;
 
@@ -967,10 +986,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
       console.log("program id", program.programId.toBase58());
 
       console.log("arcium program id", getArciumProgramId().toBase58());
-      console.log(
-        "arcium cluster pubkey",
-        clusterAccount.toBase58()
-      );
+      console.log("arcium cluster pubkey", clusterAccount.toBase58());
       console.log(
         "arcium mxe account",
         getMXEAccAddress(program.programId).toBase58()
@@ -997,49 +1013,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
           submitOrderComputationOffset
         ).toBase58()
       );
-      
-
-    //   console.log("we are entering to initialize the encrypted orderbook");
-
-    //   const initEncryptedOrderbookNonce = randomBytes(16);
-
-    //   const initEncryptedOrderbookComputationOffset = new anchor.BN(randomBytes(8), "hex");
-
-    //   const initEncryptedOrderbookTx = await program.methods
-    //   .initEncryptedOrderbook(
-    //     initEncryptedOrderbookComputationOffset,
-    //     new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
-    //   )
-    //   .accounts({
-    //     computationAccount: getComputationAccAddress(
-    //       program.programId,
-    //       initEncryptedOrderbookComputationOffset
-    //     ),
-    //     payer: authority.publicKey,
-    //     mxeAccount: getMXEAccAddress(program.programId),
-    //     mempoolAccount: getMempoolAccAddress(program.programId),
-    //     executingPool: getExecutingPoolAccAddress(program.programId),
-    //     compDefAccount: getCompDefAccAddress(
-    //       program.programId,
-    //       Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
-    //     ),  
-    //     clusterAccount: clusterAccount,
-    //     orderbookState: OrderbookPDA,
-    //   })
-    //   .signers([authority])
-    //   .rpc({ commitment: "confirmed" });
-
-    // console.log("Encrypted orderbook initialized with signature:", initEncryptedOrderbookTx);
-
-    // // Wait for initGame computation finalization
-    // const initEncryptedOrderbookFinalizeSig = await awaitComputationFinalization(
-    //   provider as anchor.AnchorProvider,
-    //   initEncryptedOrderbookComputationOffset,
-    //   program.programId,
-    //   "confirmed"
-    // );
-    // console.log("Init game finalize signature:", initEncryptedOrderbookFinalizeSig);
-  
 
       console.log("before the submit order");
 
@@ -1061,9 +1034,9 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
         User1Nonce
       );
 
-
-
-      console.log("before the submit order===============================================================================");
+      console.log(
+        "before the submit order==============================================================================="
+      );
 
       // 5. Submit order
       const tx = await program.methods
@@ -1076,38 +1049,36 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
           new anchor.BN(orderId),
           new anchor.BN(deserializeLE(User1Nonce).toString())
         )
-      .accountsPartial({
-        computationAccount: getComputationAccAddress(
-          program.programId,
-          submitOrderComputationOffset
-        ),
-        user: user1.publicKey,
-        // signPdaAccount: deriveSignerAccountPDA(program.programId),
-        // poolAccount: deriveArciumFeePoolAccountAddress(),
-        clusterAccount: clusterAccount,
-        mxeAccount: getMXEAccAddress(program.programId),
-        mempoolAccount: getMempoolAccAddress(program.programId),
-        executingPool: getExecutingPoolAccAddress(program.programId),
-        compDefAccount: getCompDefAccAddress(
-          program.programId,
-          Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
-        ),
-        // clockAccount: getClockAccAddress(),
-        systemProgram: SystemProgram.programId,
-        arciumProgram: getArciumProgramId(),
-        baseMint: baseMint,
-        vault: baseVaultPDA,
-        orderAccount: orderAccountPDA,
-        orderbookState: OrderbookPDA,
-        userLedger: userLedgerPDA,
-      })
-      .signers([user1])
-      .rpc({ commitment: "confirmed" });
+        .accountsPartial({
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            submitOrderComputationOffset
+          ),
+          user: user1.publicKey,
+          clusterAccount: clusterAccount,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
+          ),
+          // clockAccount: getClockAccAddress(),
+          systemProgram: SystemProgram.programId,
+          arciumProgram: getArciumProgramId(),
+          baseMint: baseMint,
+          vault: baseVaultPDA,
+          orderAccount: orderAccountPDA,
+          orderbookState: OrderbookPDA,
+          userLedger: userLedgerPDA,
+        })
+        .signers([user1])
+        .rpc({ commitment: "confirmed" });
 
       console.log("tx", tx);
 
       const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
-      console.log("order account info",info3);
+      console.log("order account info", info3);
 
       // 6. Wait for MPC finalization
       await awaitComputationFinalization(
@@ -1121,9 +1092,10 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
         "=============== Order submitted successfully ==============="
       );
 
-
       //fetch the userledger and check the balances by decrypting the encrypted balances
-      const userLedger = await program.account.userPrivateLedger.fetch(userLedgerPDA);
+      const userLedger = await program.account.userPrivateLedger.fetch(
+        userLedgerPDA
+      );
       console.log("user ledger", userLedger);
 
       const thisnonce = Uint8Array.from(
@@ -1497,8 +1469,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
       // Airdrop SOL to cranker bot for transaction fees
       // console.log("💰 Airdropping SOL to cranker bot...");
       if (!useDevnet) {
-      await airdrop(
-        provider,
+        await airdrop(
+          provider,
           crankerBotKeypair.publicKey,
           5 * LAMPORTS_PER_SOL
         );
@@ -1601,7 +1573,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
 
       let success = false;
 
-
       try {
         const withdrawVerifyEvent = await Promise.race([
           withdrawVerifySuccessPromise,
@@ -1624,8 +1595,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
           );
 
           console.log("user balances", userBalances);
-
-
         } else {
           console.log("Received UserLedgerWithdrawVerifiedFailedEvent.");
         }
@@ -1664,14 +1633,17 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
         // ========== VERIFICATION ==========
         console.log("\n📊 VERIFICATION:");
         const vaultAfter = await getAccount(provider.connection, baseVaultPDA);
-        expect(Number(vaultAfter.amount)).to.equal(Number(vaultBefore.amount) - Number(withdrawAmount));
+        expect(Number(vaultAfter.amount)).to.equal(
+          Number(vaultBefore.amount) - Number(withdrawAmount)
+        );
         // check if the user1 base ata has the correct amount of tokens
         const user1BaseATAnew = await getAccount(
           provider.connection,
           user1BaseATA.address
         );
-        expect(Number(user1BaseATAnew.amount)).to.equal(Number(user1BaseATA.amount) + Number(withdrawAmount));
-
+        expect(Number(user1BaseATAnew.amount)).to.equal(
+          Number(user1BaseATA.amount) + Number(withdrawAmount)
+        );
 
         console.log("\n✅ Withdrawal completed successfully!");
       } else {
@@ -1766,7 +1738,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
         if ("balanceNonce" in withdrawVerifyEvent) {
           console.log("Received UserLedgerWithdrawVerifiedSuccessEvent.");
           success = true;
-
         } else {
           console.log("Received UserLedgerWithdrawVerifiedFailedEvent.");
         }
@@ -1776,7 +1747,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async() => {
       }
 
       expect(success).to.be.false;
-
     });
   });
 });

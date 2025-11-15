@@ -90,7 +90,6 @@ pub fn submit_order(
         ])],
     )?;
 
-    // panic!("test");
 
     Ok(())
 }

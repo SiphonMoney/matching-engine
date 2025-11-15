@@ -262,9 +262,8 @@ mod circuits {
                 orderbook.sell_orders[i].order_type = (self.order_type_chunk / POWS_OF_256[i]) as u8;
             }
 
-            // TODO: add these materaia
-
-            // orderbook.buy_count = (self.order_count % 256) as u8;
+            // TODO: add logic to handle buy and sell conunts
+            // orderbook.buy_count = self.order_count as u8;
             // orderbook.sell_count = (self.order_count / 256) as u8;
             orderbook
         }
