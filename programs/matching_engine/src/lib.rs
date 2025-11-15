@@ -172,9 +172,9 @@ pub mod matching_engine {
         )?;
         Ok(())
     }
-
-    pub fn trigger_matching(ctx: Context<TriggerMatching>, computation_offset: u64) -> Result<()> {
-        instructions::trigger_matching(ctx, computation_offset)?;
+    
+    pub fn trigger_matching(ctx: Context<TriggerMatching>, computation_offset: u64, backend_nonce: u128) -> Result<()> {
+        instructions::trigger_matching(ctx, computation_offset, backend_nonce)?;
         Ok(())
     }
 
@@ -299,32 +299,33 @@ pub mod matching_engine {
         match &output {
             ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
                 let orderbook_enc = &field_0.field_0;
-                let ledger_enc = &field_0.field_1;
-                let status_enc = &field_0.field_2;
-                let success = field_0.field_3;
+                // let ledger_enc = &field_0.field_1;
+                // let status_enc = &field_0.field_1;
+                let success = field_0.field_1;
 
                 // Update orderbook
                 let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                orderbook_state.total_orders_processed += 1;
+                // orderbook_state.total_orders_processed += 1;
+                
 
-                // Update user ledger
-                let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
-                user_ledger.balance_nonce = ledger_enc.nonce;
-                user_ledger.encrypted_balances = ledger_enc.ciphertexts;
-                user_ledger.last_update = Clock::get()?.unix_timestamp;
+                // // Update user ledger
+                // let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
+                // user_ledger.balance_nonce = ledger_enc.nonce;
+                // user_ledger.encrypted_balances = ledger_enc.ciphertexts;
+                // user_ledger.last_update = Clock::get()?.unix_timestamp;
 
-                // Update order account
-                ctx.accounts.order_account.order_nonce = status_enc.nonce;
-                ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
+                // // Update order account
+                // ctx.accounts.order_account.order_nonce = status_enc.nonce;
+                // ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
 
-                emit!(OrderSubmittedEvent {
-                    order_id: ctx.accounts.order_account.order_id,
-                    user: ctx.accounts.order_account.user,
-                    success,
-                    timestamp: Clock::get()?.unix_timestamp,
-                });
+                // emit!(OrderSubmittedEvent {
+                //     order_id: ctx.accounts.order_account.order_id,
+                //     user: ctx.accounts.order_account.user,
+                //     success,
+                //     timestamp: Clock::get()?.unix_timestamp,
+                // });
 
                 Ok(())
             }
@@ -501,10 +502,10 @@ pub struct SubmitOrderCallback<'info> {
 
     #[account(mut)]
     pub orderbook_state: AccountLoader<'info, OrderBookState>,
-    #[account(mut)]
-    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
-    #[account(mut)]
-    pub order_account: Box<Account<'info, OrderAccount>>,
+    // #[account(mut)]
+    // pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
+    // #[account(mut)]
+    // pub order_account: Box<Account<'info, OrderAccount>>,
 }
 
 #[callback_accounts("init_user_ledger")]

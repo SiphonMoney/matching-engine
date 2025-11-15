@@ -527,27 +527,20 @@ mod circuits {
         pub amount: u64,
         pub price: u64,
     }
-
-
+// pub
     #[instruction]
-    pub fn submit_order(
+    pub fn submit_order_check(
         user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
         user_ledger: Enc<Shared, &Balances>,               // Shared
-        orderbook_ctx: Enc<Mxe, &OrderBookFlat>,            // MXE
-        order_id: u64,
         order_type: u8,
         timestamp: u64,
     ) -> (
-        Enc<Mxe, OrderBookFlat>,      // Updated orderbook
-        Enc<Shared, Balances>,       // Updated ledger
-        Enc<Shared, OrderStatus>, // For user to view
-        bool,                     // Success
+        bool,
+        Enc<Shared, Balances>,
+        Enc<Shared, OrderStatus>,
     ) {
         let sensitive = user_sensitive.to_arcis();
         let mut ledger = *(user_ledger.to_arcis());
-        let mut orderbook_flat = *(orderbook_ctx.to_arcis());
-
-        let mut orderbook = OrderBookFlat::to_orderbook(orderbook_flat);
 
         // Calculate required amount
         let required = if order_type == 0 {
@@ -580,6 +573,91 @@ mod circuits {
         } else {
             ledger.base_available -= required;
         }
+
+
+        let status = if possible {
+            OrderStatus {
+                order_type,
+                amount: sensitive.amount,
+                price: sensitive.price,
+                status: if possible { 1 } else { 2 }, // 1=processing, 2=rejected
+                locked_amount: if possible { required } else { 0 },
+                filled_amount: 0,
+                execution_price: 0,
+            }
+        } else {
+            OrderStatus {
+                order_type,
+                amount: sensitive.amount,
+                price: sensitive.price,
+                status: 5, // Status = 5: Insufficient balance
+                locked_amount: 0,
+                filled_amount: 0,
+                execution_price: 0,
+            }
+        };
+
+        (
+            possible.reveal(),
+            user_ledger.owner.from_arcis(ledger),
+            user_sensitive.owner.from_arcis(status),
+        )
+
+
+    }
+
+    #[instruction]
+    pub fn submit_order(
+        user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
+        // user_ledger: Enc<Shared, &Balances>,               // Shared
+        orderbook_ctx: Enc<Mxe, &OrderBookFlat>,            // MXE
+        order_id: u64,
+        order_type: u8,
+        timestamp: u64,
+    ) -> (
+        Enc<Mxe, OrderBookFlat>,      // Updated orderbook
+        // Enc<Shared, Balances>,       // Updated ledger
+        // Enc<Shared, OrderStatus>, // For user to view
+        bool,                     // Success
+    ) {
+    // ) -> Enc<Mxe, OrderBookFlat> {
+        let sensitive = user_sensitive.to_arcis();
+        // let mut ledger = *(user_ledger.to_arcis());
+        let mut orderbook_flat = *(orderbook_ctx.to_arcis());
+
+        let mut orderbook = OrderBookFlat::to_orderbook(orderbook_flat);
+
+        // Calculate required amount
+        let required = if order_type == 0 {
+            // Buy order needs quote token
+            sensitive.amount * sensitive.price
+        } else {
+            // Sell order needs base token
+            sensitive.amount
+        };
+
+        // Check available balance
+        // let available = if order_type == 0 {
+        //     ledger.quote_available
+        // } else {
+        //     ledger.base_available
+        // };
+
+        let mut possible = true;
+
+        // if available < required {
+        //     // Insufficient balance
+        //     possible = false;
+        // }
+
+        // Lock funds
+        // if order_type == 1 {
+        //     ledger.quote_available -= required;
+        //     // Note: We don't track locked separately in this simplified version
+        //     // In production, you'd have base_locked and quote_locked fields
+        // } else {
+        //     ledger.base_available -= required;
+        // }
 
         // Add to orderbook
 
@@ -627,10 +705,11 @@ mod circuits {
             }
         };
 
+        // orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook))
         (
             orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
-            user_ledger.owner.from_arcis(ledger),
-            user_sensitive.owner.from_arcis(status),
+        //     user_ledger.owner.from_arcis(ledger),
+            // user_sensitive.owner.from_arcis(status),
             success.reveal(),
         )
     }

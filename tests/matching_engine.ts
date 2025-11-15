@@ -1068,17 +1068,17 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
           arciumProgram: getArciumProgramId(),
           baseMint: baseMint,
           vault: baseVaultPDA,
-          orderAccount: orderAccountPDA,
+          // orderAccount: orderAccountPDA,
           orderbookState: OrderbookPDA,
-          userLedger: userLedgerPDA,
+          // userLedger: userLedgerPDA,
         })
         .signers([user1])
         .rpc({ commitment: "confirmed" });
 
       console.log("tx", tx);
 
-      const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
-      console.log("order account info", info3);
+      // const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
+      // console.log("order account info", info3);
 
       // 6. Wait for MPC finalization
       await awaitComputationFinalization(
@@ -1335,17 +1335,36 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       //   program.programId,
       //   "confirmed"
       // );
+      // console.log("Trigger matching called");
+      // const TriggerMatchingComputationOffset = new anchor.BN(randomBytes(8), "hex");
+      // let backendNonce = randomBytes(16);
 
-      // await program.methods
-      //   .triggerMatching(new anchor.BN(0), TriggerMatchingComputationOffset)
+
+      // const triggerMatchingTx = await program.methods
+      //   .triggerMatching(TriggerMatchingComputationOffset, backendNonce)
       //   .accountsPartial({
       //     computationAccount: getComputationAccAddress(
       //       program.programId,
       //       TriggerMatchingComputationOffset
       //     ),
+      //     payer: user1.publicKey,
+      //     clusterAccount: clusterAccount,
+      //     mxeAccount: getMXEAccAddress(program.programId),
+      //     mempoolAccount: getMempoolAccAddress(program.programId),
+      //     executingPool: getExecutingPoolAccAddress(program.programId),
+      //     compDefAccount: getCompDefAccAddress(
+      //       program.programId,
+      //       Buffer.from(getCompDefAccOffset("match_orders")).readUInt32LE()
+      //     ),
+      //     systemProgram: SystemProgram.programId,
+      //     arciumProgram: getArciumProgramId(),
+      //     orderbookState: OrderbookPDA,
       //   })
       //   .signers([user1])
       //   .rpc({ commitment: "confirmed" });
+
+
+      // console.log("Trigger matching tx", triggerMatchingTx);
 
       // await awaitComputationFinalization(
       //   provider,
@@ -1354,11 +1373,11 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       //   "confirmed"
       // );
 
-      console.log("  - Trigger matching computation");
+      // console.log("  - Trigger matching computation");
 
-      console.log("  - Verify nonce increment (CRITICAL!)");
+      // console.log("  - Verify nonce increment (CRITICAL!)");
 
-      console.log("  - Verify MatchResultEvent");
+      // console.log("  - Verify MatchResultEvent");
 
       // const eventPromise = awaitEvent("matchesFoundEvent");
       // const event = await eventPromise;
