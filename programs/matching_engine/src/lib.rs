@@ -298,16 +298,16 @@ pub mod matching_engine {
     ) -> Result<()> {
         match &output {
             ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
-                // let orderbook_enc = &field_0.field_0;
-                let ledger_enc = &field_0.field_0;
-                let status_enc = &field_0.field_1;
-                let success = field_0.field_2;
+                let orderbook_enc = &field_0.field_0;
+                let ledger_enc = &field_0.field_1;
+                let status_enc = &field_0.field_2;
+                let success = field_0.field_3;
 
                 // Update orderbook
-                // let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
-                // orderbook_state.orderbook_nonce = orderbook_enc.nonce;
-                // orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                // orderbook_state.total_orders_processed += 1;
+                let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
+                orderbook_state.orderbook_nonce = orderbook_enc.nonce;
+                orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
+                orderbook_state.total_orders_processed += 1;
 
                 // Update user ledger
                 let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;

@@ -539,7 +539,7 @@ mod circuits {
         order_type: u8,
         timestamp: u64,
     ) -> (
-        // Enc<Mxe, OrderBookFlat>,      // Updated orderbook
+        Enc<Mxe, OrderBookFlat>,      // Updated orderbook
         Enc<Shared, Balances>,       // Updated ledger
         Enc<Shared, OrderStatus>, // For user to view
         bool,                     // Success
@@ -629,7 +629,7 @@ mod circuits {
         };
 
         (
-            // orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
+            orderbook_ctx.owner.from_arcis(OrderBookFlat::from_orderbook(orderbook)),
             user_ledger.owner.from_arcis(ledger),
             user_sensitive.owner.from_arcis(status),
             success.reveal(),
