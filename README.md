@@ -363,13 +363,13 @@ Critical: Callbacks must update stored nonces or subsequent operations will fail
 ### Account PDAs
 - OrderBookState: `[b"order_book_state"]`
 - OrderAccount: `[b"order", order_id]`
-
+<!-- 
 ## Documentation
 
-- [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md) - System architecture overview
-- [COMPLETE_FLOW_DIAGRAMS.md](./COMPLETE_FLOW_DIAGRAMS.md) - Detailed flow diagrams
-- [TESTING_STRATEGY.md](./TESTING_STRATEGY.md) - Test suite documentation
-- [COMPREHENSIVE_TEST_CHECKLIST.md](./COMPREHENSIVE_TEST_CHECKLIST.md) - Full test checklist
+- [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md) - System architecture overview -->
+<!-- - [COMPLETE_FLOW_DIAGRAMS.md](./COMPLETE_FLOW_DIAGRAMS.md) - Detailed flow diagrams -->
+<!-- - [TESTING_STRATEGY.md](./TESTING_STRATEGY.md) - Test suite documentation -->
+<!-- - [COMPREHENSIVE_TEST_CHECKLIST.md](./COMPREHENSIVE_TEST_CHECKLIST.md) - Full test checklist -->
 
 ## Current Status
 
