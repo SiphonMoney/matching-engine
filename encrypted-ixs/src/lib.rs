@@ -527,7 +527,8 @@ mod circuits {
         pub amount: u64,
         pub price: u64,
     }
-// pub
+
+
     #[instruction]
     pub fn submit_order_check(
         user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
@@ -574,7 +575,6 @@ mod circuits {
             ledger.base_available -= required;
         }
 
-
         let status = if possible {
             OrderStatus {
                 order_type,
@@ -609,7 +609,6 @@ mod circuits {
     #[instruction]
     pub fn submit_order(
         user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
-        // user_ledger: Enc<Shared, &Balances>,               // Shared
         orderbook_ctx: Enc<Mxe, &OrderBookFlat>,            // MXE
         order_id: u64,
         order_type: u8,

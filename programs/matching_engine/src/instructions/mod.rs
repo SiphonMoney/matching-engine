@@ -25,5 +25,5 @@ pub use withdraw_from_ledger_verify::*;
 pub mod withdraw_from_vault;
 pub use withdraw_from_vault::*;
 
-// pub mod submit_order_check;
-// pub use submit_order_check::*;
+pub mod submit_order_check;
+pub use submit_order_check::*;

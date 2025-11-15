@@ -4,6 +4,7 @@ use arcium_client::idl::arcium::types::CallbackAccount;
 
 const COMP_DEF_OFFSET_MATCH_ORDERS: u32 = comp_def_offset("match_orders");
 const COMP_DEF_OFFSET_SUBMIT_ORDER: u32 = comp_def_offset("submit_order");
+const COMP_DEF_OFFSET_SUBMIT_ORDER_CHECK: u32 = comp_def_offset("submit_order_check");
 const COMP_DEF_OFFSET_INIT_ORDER_BOOK: u32 = comp_def_offset("init_order_book");
 const COMP_DEF_OFFSET_UPDATE_LEDGER_DEPOSIT: u32 = comp_def_offset("update_ledger_deposit");
 const COMP_DEF_OFFSET_UPDATE_LEDGER_WITHDRAW_VERIFY: u32 =
@@ -30,6 +31,11 @@ pub use utils::*;
 pub mod matching_engine {
     use super::*;
     use crate::errors::ErrorCode;
+
+    pub fn init_submit_order_check_comp_def(ctx: Context<InitSubmitOrderCheckCompDef>) -> Result<()> {
+        init_comp_def(ctx.accounts, true, 0, None, None)?;
+        Ok(())
+    }
 
     pub fn init_user_ledger_comp_def(ctx: Context<InitializeUserLedgerCompDef>) -> Result<()> {
         init_comp_def(ctx.accounts, true, 0, None, None)?;
@@ -150,6 +156,30 @@ pub mod matching_engine {
         Ok(())
     }
 
+
+    pub fn submit_order_check(
+        ctx: Context<SubmitOrderCheck>,
+        amount: [u8; 32],
+        price: [u8; 32],
+        user_enc_pubkey: [u8; 32],
+        order_type: u8,
+        computation_offset: u64,
+        order_id: u64,
+        order_nonce: u128,
+    ) -> Result<()> {
+        instructions::submit_order_check(
+            ctx,
+            amount,
+            price,
+            user_enc_pubkey,
+            order_type,
+            computation_offset,
+            order_id,
+            order_nonce,
+        )?;
+        Ok(())
+    }
+
     pub fn submit_order(
         ctx: Context<SubmitOrder>,
         amount: [u8; 32],
@@ -266,6 +296,41 @@ pub mod matching_engine {
         process_submit_order_result(ctx, output)
     }
 
+
+    pub fn submit_order_check_callback(
+        ctx: Context<SubmitOrderCheckCallback>,
+        output: ComputationOutputs<SubmitOrderCheckOutput>,
+    ) -> Result<()> {
+        process_submit_order_check_result(ctx, output)
+    }
+
+    #[inline(never)]
+    pub fn process_submit_order_check_result(
+        ctx: Context<SubmitOrderCheckCallback>,
+        output: ComputationOutputs<SubmitOrderCheckOutput>,
+    ) -> Result<()> {
+        match &output {
+            ComputationOutputs::Success(SubmitOrderCheckOutput { field_0 }) => {
+                let success = field_0.field_0;
+                let ledger_enc = &field_0.field_1;
+                let status_enc = &field_0.field_2;
+                
+                // // Update user ledger
+                let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
+                user_ledger.balance_nonce = ledger_enc.nonce;
+                user_ledger.encrypted_balances = ledger_enc.ciphertexts;
+                user_ledger.last_update = Clock::get()?.unix_timestamp;
+
+                // // Update order account
+                ctx.accounts.order_account.order_nonce = status_enc.nonce;
+                ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
+
+             
+                Ok(())
+            }
+            _ => Err(ErrorCode::AbortedComputation.into()),
+        }
+    }
     pub fn execute_settlement_callback(
         ctx: Context<ExecuteSettlementCallback>,
         output: ComputationOutputs<ExecuteSettlementOutput>,
@@ -506,6 +571,22 @@ pub struct SubmitOrderCallback<'info> {
     // pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
     // #[account(mut)]
     // pub order_account: Box<Account<'info, OrderAccount>>,
+}
+
+
+#[callback_accounts("submit_order_check")]
+#[derive(Accounts)]
+pub struct SubmitOrderCheckCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_SUBMIT_ORDER_CHECK))]
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
+    #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
+    /// CHECK: instructions_sysvar, checked by the account constraint
+    pub instructions_sysvar: AccountInfo<'info>,
+    #[account(mut)]
+    pub user_ledger: AccountLoader<'info, UserPrivateLedger>,
+    #[account(mut)]
+    pub order_account: Box<Account<'info, OrderAccount>>,
 }
 
 #[callback_accounts("init_user_ledger")]

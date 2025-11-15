@@ -410,3 +410,69 @@ export async function withdrawFromLedgerVerifyCompDef(
 
   return sig;
 }
+
+
+/**
+ * Initialize submit_order_check computation definition
+ */
+export async function initSubmitOrderCheckCompDef(
+  program: Program<MatchingEngine>,
+  owner: Keypair,
+  uploadRawCircuit: boolean = false,
+  offchainSource: boolean = false
+): Promise<string> {
+  const baseSeedCompDefAcc = getArciumAccountBaseSeed(
+    "ComputationDefinitionAccount"
+  );
+  const offset = getCompDefAccOffset("submit_order_check");
+
+  const compDefPDA = PublicKey.findProgramAddressSync(
+    [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
+    getArciumProgAddress()
+  )[0];
+
+  console.log("Submit order check comp def PDA:", compDefPDA.toBase58());
+
+  const sig = await program.methods
+    .initSubmitOrderCheckCompDef()
+    .accounts({
+      compDefAccount: compDefPDA,
+      payer: owner.publicKey,
+      mxeAccount: getMXEAccAddress(program.programId),
+    })
+    .signers([owner])
+    .rpc({
+      commitment: "confirmed",
+    });
+
+  console.log("Init submit_order_check computation definition tx:", sig);
+
+  const provider = program.provider as anchor.AnchorProvider;
+
+  if (uploadRawCircuit) {
+    const rawCircuit = fs.readFileSync("build/submit_order_check.arcis");
+    await uploadCircuit(
+      provider,
+      "submit_order_check",
+      program.programId,
+      rawCircuit,
+      true
+    );
+  } else if (!offchainSource) {
+    const finalizeTx = await buildFinalizeCompDefTx(
+      provider,
+      Buffer.from(offset).readUInt32LE(),
+      program.programId
+    );
+
+    const latestBlockhash = await provider.connection.getLatestBlockhash();
+    finalizeTx.recentBlockhash = latestBlockhash.blockhash;
+    finalizeTx.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+
+    finalizeTx.sign(owner);
+
+    await provider.sendAndConfirm(finalizeTx);
+  }
+
+  return sig;
+}

@@ -60,6 +60,7 @@ import {
   updateLedgerDepositCompDef,
   withdrawFromLedgerVerifyCompDef,
   readKpJson,
+  initSubmitOrderCheckCompDef,
 } from "./helpers/computation";
 import { MatchingEngine } from "../target/types/matching_engine";
 import MatchingEngineIDL from "../target/idl/matching_engine.json";
@@ -484,6 +485,34 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
         }
       }
       expect(withdrawFromLedgerVerifyCompDefSig).to.exist;
+
+      console.log(
+        "Initializing submit_order_check computation definition..."
+      );
+      let submitOrderCheckCompDefSig;
+      try {
+        submitOrderCheckCompDefSig =
+          await initSubmitOrderCheckCompDef(
+            program,
+            authority,
+            false,
+            false
+          );
+        console.log(
+          "Submit order check comp def sig:",
+          submitOrderCheckCompDefSig
+        );
+      } catch (error) {
+        if (error.message.includes("already in use")) {
+          console.log(
+            "Submit order check comp def already exists, skipping..."
+          );
+          submitOrderCheckCompDefSig = "already_exists";
+        } else {
+          throw error;
+        }
+      }
+      expect(submitOrderCheckCompDefSig).to.exist;
 
       // await setTimeout(async () => {
       //   console.log("wait for compdef to maybe get up for real for a minute")
@@ -976,6 +1005,65 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
         program.programId
       );
 
+      const User1Nonce = randomBytes(16);
+      const User1Ciphertext = User1Cipher.encrypt(
+        [BigInt(amount), BigInt(price)],
+        User1Nonce
+      );
+
+      console.log("before the submit order check=================================");
+
+
+      const submitOrderCheckComputationOffset = new anchor.BN(randomBytes(8), "hex");   
+      const submitOrderCheckTx = await program.methods
+        .submitOrderCheck(
+          Array.from(User1Ciphertext[0]),
+          Array.from(User1Ciphertext[1]),
+          Array.from(User1PublicKey),
+          0, // buy
+          submitOrderCheckComputationOffset,
+          new anchor.BN(orderId),
+          new anchor.BN(deserializeLE(User1Nonce).toString())
+        )
+        .accountsPartial({
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            submitOrderCheckComputationOffset
+          ),
+          user: user1.publicKey,
+          clusterAccount: clusterAccount,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(getCompDefAccOffset("submit_order_check")).readUInt32LE()
+          ),
+          systemProgram: SystemProgram.programId,
+          arciumProgram: getArciumProgramId(),
+          baseMint: baseMint,
+          vault: baseVaultPDA,
+          orderAccount: orderAccountPDA,
+          // orderbookState: OrderbookPDA,
+          userLedger: userLedgerPDA,
+        })
+        .signers([user1])
+        .rpc({ commitment: "confirmed" });
+
+      console.log("submitOrderCheckTx", submitOrderCheckTx);
+
+      await awaitComputationFinalization(
+        provider,
+        submitOrderCheckComputationOffset,
+        program.programId,
+        "confirmed"
+      );
+
+      console.log("submitOrderCheck completed");
+
+      // const submitOrderCheckEvent = await submitOrderCheckPromise;
+      // console.log("submitOrderCheck event", submitOrderCheckEvent);
+
       console.log("=== submitOrder Accounts ===");
       console.log("User:", user1.publicKey.toBase58());
       console.log("Vault PDA:", baseVaultPDA.toBase58());
@@ -1028,11 +1116,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       );
       console.log("user ledger account info", info2);
 
-      const User1Nonce = randomBytes(16);
-      const User1Ciphertext = User1Cipher.encrypt(
-        [BigInt(amount), BigInt(price)],
-        User1Nonce
-      );
+
 
       console.log(
         "before the submit order==============================================================================="
