@@ -346,27 +346,12 @@ matching_engine/
 4. **Partially Filled (3)** - Matched but not fully filled
 5. **Fully Filled (4)** - Completely matched and settled
 
-### Nonce Management
+<!-- ### Nonce Management
 Every MPC operation requires a nonce and produces a new nonce. The program tracks:
 - `orderbook_nonce` - Current nonce for orderbook encryption
 - `match_nonce` - Fresh nonce for each match result
 
-Critical: Callbacks must update stored nonces or subsequent operations will fail.
-
-### User Pubkey Passing
-Arcium has no native pubkey type, so public keys are passed as 4x `u64` chunks:
-```rust
-// Split pubkey into chunks
-let chunks = [
-    u64::from_le_bytes(pubkey[0..8]),
-    u64::from_le_bytes(pubkey[8..16]),
-    u64::from_le_bytes(pubkey[16..24]),
-    u64::from_le_bytes(pubkey[24..32]),
-];
-
-// Reconstruct in MPC
-let pubkey = reconstruct_from_chunks(chunk0, chunk1, chunk2, chunk3);
-```
+Critical: Callbacks must update stored nonces or subsequent operations will fail. -->
 
 ## Configuration
 
@@ -377,8 +362,7 @@ let pubkey = reconstruct_from_chunks(chunk0, chunk1, chunk2, chunk3);
 
 ### Account PDAs
 - OrderBookState: `[b"order_book_state"]`
-- OrderAccount: `[b"order", order_id, user_pubkey]`
-- VaultState: `[b"vault", mint, user_pubkey]`
+- OrderAccount: `[b"order", order_id]`
 
 ## Documentation
 
@@ -440,22 +424,18 @@ let pubkey = reconstruct_from_chunks(chunk0, chunk1, chunk2, chunk3);
 **Trust Assumptions:**
 - Arcium MPC network operates honestly
 - Cranker bot executes withdrawals correctly
-- Users protect their x25519 private keys
+- Users/client code protects their x25519 private keys
 - Solana validators don't collude
-
+<!-- 
 **⚠️ Security Notes:**
 - This is a **prototype** for educational purposes
 - **Not audited** for production use
 - Cranker bot private key must be secured (HSM recommended)
-- Test thoroughly before mainnet deployment
+- Test thoroughly before mainnet deployment -->
 
 ## License
 
 GPL v3
-
-## Contributing
-
-Contributions are welcome. Please see [COMPREHENSIVE_TEST_CHECKLIST.md](./COMPREHENSIVE_TEST_CHECKLIST.md) for testing requirements before submitting PRs.
 
 ## Acknowledgments
 
