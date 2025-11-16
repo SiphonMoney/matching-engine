@@ -26,17 +26,7 @@ pub fn submit_order(
     order_nonce: u128,
 ) -> Result<()> {
 
-    //initialize the order account
-    // let order_account = &mut ctx.accounts.order_account;
-    // order_account.order_id = order_id;
-    // order_account.user = ctx.accounts.user.key();
-    // order_account.user_enc_pubkey = user_pubkey;
-    // order_account.order_nonce = order_nonce;
-    // order_account.timestamp = Clock::get()?.unix_timestamp;
-    // order_account.bump = ctx.bumps.order_account;
-
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
-    // let user_ledger = ctx.accounts.user_ledger.load_mut()?;
     let orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
     
     let args = vec![        
@@ -46,15 +36,6 @@ pub fn submit_order(
         Argument::PlaintextU128(order_nonce),
         Argument::EncryptedU64(amount), // Client encrypts this
         Argument::EncryptedU64(price),  // Client encrypts this
-
-        // Enc<Shared, Balances>
-        // Argument::ArcisPubkey(user_pubkey),
-        // Argument::PlaintextU128(user_ledger.balance_nonce),
-        // Argument::Account(
-        //     ctx.accounts.user_ledger.key(),
-        //     8 + 32,          // Offset: discriminator + owner
-        //     4 * 32,          // Size: 4 chunks
-        // ),
 
         // Enc<Mxe, OrderBook>
         Argument::PlaintextU128(orderbook_state.orderbook_nonce),
@@ -79,14 +60,6 @@ pub fn submit_order(
                 pubkey: ctx.accounts.orderbook_state.key(),
                 is_writable: true,
             },
-            // CallbackAccount {
-            //     pubkey: ctx.accounts.user_ledger.key(),
-            //     is_writable: true,
-            // },
-            // CallbackAccount {
-            //     pubkey: ctx.accounts.order_account.key(),
-            //     is_writable: true,
-            // },
         ])],
     )?;
 

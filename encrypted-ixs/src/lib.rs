@@ -553,7 +553,7 @@ mod circuits {
         };
 
         // Check available balance
-        let available = if order_type == 0 {
+        let available = if order_type == 1 {
             ledger.quote_available
         } else {
             ledger.base_available
@@ -566,13 +566,15 @@ mod circuits {
             possible = false;
         }
 
-        // Lock funds
-        if order_type == 1 {
-            ledger.quote_available -= required;
-            // Note: We don't track locked separately in this simplified version
-            // In production, you'd have base_locked and quote_locked fields
-        } else {
-            ledger.base_available -= required;
+        // Lock funds only when the its possible
+        if possible {
+            if order_type == 1 {
+                ledger.quote_available -= required;
+                // Note: We don't track locked separately in this simplified version
+                // In production, you'd have base_locked and quote_locked fields
+            } else {
+                ledger.base_available -= required;
+            }
         }
 
         let status = if possible {

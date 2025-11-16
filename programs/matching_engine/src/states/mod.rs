@@ -21,6 +21,3 @@ pub use user_private_ledger::*;
 
 pub mod match_result;
 pub use match_result::*;
-
-pub mod order_book;
-pub use order_book::*;

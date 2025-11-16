@@ -325,7 +325,22 @@ pub mod matching_engine {
                 ctx.accounts.order_account.order_nonce = status_enc.nonce;
                 ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
 
-             
+                // emit event showing that this order submission was a success and for the given order
+                if success {
+                    emit!(OrderSubmittedCheckSuccessEvent {
+                        order_id: ctx.accounts.order_account.order_id,
+                        user: ctx.accounts.order_account.user,
+                        success,
+                        timestamp: Clock::get()?.unix_timestamp,
+                        order_nonce: ctx.accounts.order_account.order_nonce,
+                        });
+                } else {
+                    emit!(OrderSubmittedCheckFailedEvent {
+                        order_id: ctx.accounts.order_account.order_id,
+                        user: ctx.accounts.order_account.user,
+                    });
+                }
+
                 Ok(())
             }
             _ => Err(ErrorCode::AbortedComputation.into()),
@@ -364,33 +379,14 @@ pub mod matching_engine {
         match &output {
             ComputationOutputs::Success(SubmitOrderOutput { field_0 }) => {
                 let orderbook_enc = &field_0.field_0;
-                // let ledger_enc = &field_0.field_1;
-                // let status_enc = &field_0.field_1;
                 let success = field_0.field_1;
 
                 // Update orderbook
                 let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;
-                // orderbook_state.total_orders_processed += 1;
-                
+                orderbook_state.total_orders_processed += 1;
 
-                // // Update user ledger
-                // let mut user_ledger = ctx.accounts.user_ledger.load_mut()?;
-                // user_ledger.balance_nonce = ledger_enc.nonce;
-                // user_ledger.encrypted_balances = ledger_enc.ciphertexts;
-                // user_ledger.last_update = Clock::get()?.unix_timestamp;
-
-                // // Update order account
-                // ctx.accounts.order_account.order_nonce = status_enc.nonce;
-                // ctx.accounts.order_account.encrypted_order = status_enc.ciphertexts;
-
-                // emit!(OrderSubmittedEvent {
-                //     order_id: ctx.accounts.order_account.order_id,
-                //     user: ctx.accounts.order_account.user,
-                //     success,
-                //     timestamp: Clock::get()?.unix_timestamp,
-                // });
 
                 Ok(())
             }
@@ -760,5 +756,21 @@ pub struct UserLedgerWithdrawVerifiedSuccessEvent {
 
 #[event]
 pub struct UserLedgerWithdrawVerifiedFailedEvent {
+    pub user: Pubkey,
+}
+
+
+#[event]
+pub struct OrderSubmittedCheckSuccessEvent {
+    pub order_id: u64,
+    pub user: Pubkey,
+    pub success: bool,
+    pub timestamp: i64,
+    pub order_nonce: u128,
+}
+
+#[event]
+pub struct OrderSubmittedCheckFailedEvent {
+    pub order_id: u64,
     pub user: Pubkey,
 }

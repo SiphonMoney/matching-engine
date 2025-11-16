@@ -3,7 +3,6 @@ use crate::SubmitOrderCheckCallback;
 use crate::errors::ErrorCode;
 use crate::states::*;
 use crate::SignerAccount;
-use crate::SubmitOrderCallback;
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 use anchor_spl::token_interface::Mint;
@@ -61,21 +60,12 @@ pub fn submit_order_check(
         Argument::PlaintextU64(Clock::get()?.unix_timestamp as u64),
     ];
 
-    // user_sensitive: Enc<Shared, UserSensitiveData>, // User's x25519
-    // user_ledger: Enc<Shared, &Balances>,               // Shared
-    // order_type: u8,
-    // timestamp: u64,
-
     queue_computation(
         ctx.accounts,
         computation_offset,
         args,
         None,
         vec![SubmitOrderCheckCallback::callback_ix(&[
-            // CallbackAccount {
-            //     pubkey: ctx.accounts.orderbook_state.key(),
-            //     is_writable: true,
-            // },
             CallbackAccount {
                 pubkey: ctx.accounts.user_ledger.key(),
                 is_writable: true,

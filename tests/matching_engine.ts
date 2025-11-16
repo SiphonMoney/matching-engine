@@ -486,18 +486,15 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       }
       expect(withdrawFromLedgerVerifyCompDefSig).to.exist;
 
-      console.log(
-        "Initializing submit_order_check computation definition..."
-      );
+      console.log("Initializing submit_order_check computation definition...");
       let submitOrderCheckCompDefSig;
       try {
-        submitOrderCheckCompDefSig =
-          await initSubmitOrderCheckCompDef(
-            program,
-            authority,
-            false,
-            false
-          );
+        submitOrderCheckCompDefSig = await initSubmitOrderCheckCompDef(
+          program,
+          authority,
+          false,
+          false
+        );
         console.log(
           "Submit order check comp def sig:",
           submitOrderCheckCompDefSig
@@ -1011,10 +1008,21 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
         User1Nonce
       );
 
-      console.log("before the submit order check=================================");
+      const orderSubmittedCheckSuccessPromise = awaitEvent(
+        "orderSubmittedCheckSuccessEvent"
+      );
+      const orderSubmittedCheckFailedPromise = awaitEvent(
+        "orderSubmittedCheckFailedEvent"
+      );
 
+      console.log(
+        "before the submit order check================================="
+      );
 
-      const submitOrderCheckComputationOffset = new anchor.BN(randomBytes(8), "hex");   
+      const submitOrderCheckComputationOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
+      );
       const submitOrderCheckTx = await program.methods
         .submitOrderCheck(
           Array.from(User1Ciphertext[0]),
@@ -1037,7 +1045,9 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
           executingPool: getExecutingPoolAccAddress(program.programId),
           compDefAccount: getCompDefAccAddress(
             program.programId,
-            Buffer.from(getCompDefAccOffset("submit_order_check")).readUInt32LE()
+            Buffer.from(
+              getCompDefAccOffset("submit_order_check")
+            ).readUInt32LE()
           ),
           systemProgram: SystemProgram.programId,
           arciumProgram: getArciumProgramId(),
@@ -1061,156 +1071,103 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
 
       console.log("submitOrderCheck completed");
 
-      // const submitOrderCheckEvent = await submitOrderCheckPromise;
-      // console.log("submitOrderCheck event", submitOrderCheckEvent);
-
-      console.log("=== submitOrder Accounts ===");
-      console.log("User:", user1.publicKey.toBase58());
-      console.log("Vault PDA:", baseVaultPDA.toBase58());
-      console.log("Vault State PDA:", vaultStatePDA.toBase58());
-      console.log("Order Account PDA:", orderAccountPDA.toBase58());
-      console.log("User Ledger PDA:", userLedgerPDA.toBase58());
-      console.log("Orderbook PDA:", OrderbookPDA.toBase58());
-      console.log("program id", program.programId.toBase58());
-
-      console.log("arcium program id", getArciumProgramId().toBase58());
-      console.log("arcium cluster pubkey", clusterAccount.toBase58());
-      console.log(
-        "arcium mxe account",
-        getMXEAccAddress(program.programId).toBase58()
-      );
-      console.log(
-        "arcium mempool account",
-        getMempoolAccAddress(program.programId).toBase58()
-      );
-      console.log(
-        "arcium executing pool account",
-        getExecutingPoolAccAddress(program.programId).toBase58()
-      );
-      console.log(
-        "arcium comp def account",
-        getCompDefAccAddress(
-          program.programId,
-          Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
-        ).toBase58()
-      );
-      console.log(
-        "arcium computation account",
-        getComputationAccAddress(
-          program.programId,
-          submitOrderComputationOffset
-        ).toBase58()
+      //check the contents of the order account
+      const orderAccount = await program.account.orderAccount.fetch(
+        orderAccountPDA
       );
 
-      console.log("before the submit order");
-
-      //check if the orderbook accocunt, the user ledger account, and the order account do exist
-      expect(OrderbookPDA).to.exist;
-      // print the account info of the order account
-      const info = await program.account.orderBookState.fetch(OrderbookPDA);
-      console.log("order account info", info);
-      expect(userLedgerPDA).to.exist;
-      // print the account info of the user ledger account
-      const info2 = await program.account.userPrivateLedger.fetch(
-        userLedgerPDA
+      // decryypt the content of the order account's encryptedOrder field
+      const decryptedOrder = User1Cipher.decrypt(
+        [...orderAccount.encryptedOrder],
+        Uint8Array.from(orderAccount.orderNonce.toArray("le", 16))
       );
-      console.log("user ledger account info", info2);
+      console.log("decrypted order", decryptedOrder);
 
+      let success = false;
 
+      try {
+        const submitOrderCheckEvent = await Promise.race([
+          orderSubmittedCheckSuccessPromise,
+          orderSubmittedCheckFailedPromise,
+        ]);
 
-      console.log(
-        "before the submit order==============================================================================="
-      );
+        console.log("submitOrderCheckEvent", submitOrderCheckEvent);
 
-      // 5. Submit order
-      const tx = await program.methods
-        .submitOrder(
-          Array.from(User1Ciphertext[0]),
-          Array.from(User1Ciphertext[1]),
-          Array.from(User1PublicKey),
-          0, // buy
+        if ("success" in submitOrderCheckEvent) {
+          console.log("Received OrderSubmittedCheckSuccessEvent.");
+          success = true;
+
+          // console.log("user balances", userBalances);
+        } else {
+          console.log("Received OrderSubmittedCheckFailedEvent.");
+        }
+      } catch (e) {
+        console.error("Error waiting for withdraw verify event:", e);
+        throw e;
+      }
+
+      // ========== STEP 2: If verified, cranker executes order submission on the encrypted orderbook ==========
+      if (success) {
+        console.log("\n🤖 STEP 2: cranker executing order submission...");
+        const tx = await program.methods
+          .submitOrder(
+            Array.from(User1Ciphertext[0]),
+            Array.from(User1Ciphertext[1]),
+            Array.from(User1PublicKey),
+            0, // buy
+            submitOrderComputationOffset,
+            new anchor.BN(orderId),
+            new anchor.BN(deserializeLE(User1Nonce).toString())
+          )
+          .accountsPartial({
+            computationAccount: getComputationAccAddress(
+              program.programId,
+              submitOrderComputationOffset
+            ),
+            user: user1.publicKey,
+            clusterAccount: clusterAccount,
+            mxeAccount: getMXEAccAddress(program.programId),
+            mempoolAccount: getMempoolAccAddress(program.programId),
+            executingPool: getExecutingPoolAccAddress(program.programId),
+            compDefAccount: getCompDefAccAddress(
+              program.programId,
+              Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
+            ),
+            systemProgram: SystemProgram.programId,
+            arciumProgram: getArciumProgramId(),
+            baseMint: baseMint,
+            vault: baseVaultPDA,
+            orderbookState: OrderbookPDA,
+          })
+          .signers([user1])
+          .rpc({ commitment: "confirmed" });
+
+        console.log("tx", tx);
+
+        // 6. Wait for MPC finalization
+        await awaitComputationFinalization(
+          provider,
           submitOrderComputationOffset,
-          new anchor.BN(orderId),
-          new anchor.BN(deserializeLE(User1Nonce).toString())
-        )
-        .accountsPartial({
-          computationAccount: getComputationAccAddress(
-            program.programId,
-            submitOrderComputationOffset
-          ),
-          user: user1.publicKey,
-          clusterAccount: clusterAccount,
-          mxeAccount: getMXEAccAddress(program.programId),
-          mempoolAccount: getMempoolAccAddress(program.programId),
-          executingPool: getExecutingPoolAccAddress(program.programId),
-          compDefAccount: getCompDefAccAddress(
-            program.programId,
-            Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
-          ),
-          // clockAccount: getClockAccAddress(),
-          systemProgram: SystemProgram.programId,
-          arciumProgram: getArciumProgramId(),
-          baseMint: baseMint,
-          vault: baseVaultPDA,
-          // orderAccount: orderAccountPDA,
-          orderbookState: OrderbookPDA,
-          // userLedger: userLedgerPDA,
-        })
-        .signers([user1])
-        .rpc({ commitment: "confirmed" });
+          program.programId,
+          "confirmed"
+        );
 
-      console.log("tx", tx);
-
-      // const info3 = await program.account.orderAccount.fetch(orderAccountPDA);
-      // console.log("order account info", info3);
-
-      // 6. Wait for MPC finalization
-      await awaitComputationFinalization(
-        provider,
-        submitOrderComputationOffset,
-        program.programId,
-        "confirmed"
-      );
-
-      console.log(
-        "=============== Order submitted successfully ==============="
-      );
-
-      //fetch the userledger and check the balances by decrypting the encrypted balances
-      const userLedger = await program.account.userPrivateLedger.fetch(
-        userLedgerPDA
-      );
-      console.log("user ledger", userLedger);
-
-      const thisnonce = Uint8Array.from(
-        userLedger.balanceNonce.toArray("le", 16)
-      );
-      const userLedgerBalances = User1Cipher.decrypt(
-        [...userLedger.encryptedBalances],
-        thisnonce
-      );
-      console.log("user ledger balances", userLedgerBalances);
-      // console.log("waiting for event");
-      // // 7. Get event
-      // // const event = await eventPromise;
-      // // expect(event.success).to.be.true;
-
-      // // 8. CRITICAL: Verify nonce incremented
-      // const after = await getOrderBookState(program);
-      // console.log("after", after);
-      // expect(after.orderBookNonce.toString()).to.equal(
-      //   initialNonce.add(new BN(1)).toString()
-      // );
-
-      // console.log("nonce incremented");
-
-      // 9. Verify OrderAccount created
-      // const orderAccount = await getOrderAccount(
-      //   program,
-      //   new BN(event.orderId),
-      //   user1.publicKey
-      // );
-      // expect(orderAccount.status).to.equal(1); // Processing
+        console.log("\n✅ ==============================Order submitted successfully===========================!");
+        const userLedger = await program.account.userPrivateLedger.fetch(
+          userLedgerPDA
+        );
+  
+        const thisnonce = Uint8Array.from(
+          userLedger.balanceNonce.toArray("le", 16)
+        );
+        const userLedgerBalances = User1Cipher.decrypt(
+          [...userLedger.encryptedBalances],
+          thisnonce
+        );
+        console.log("user ledger balances", userLedgerBalances);
+      } else {
+        throw new Error("No event received - something went wrong!");
+      }
     });
 
     it("Test 1.3.3: Should handle user pubkey chunking correctly", async () => {
@@ -1423,7 +1380,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       // const TriggerMatchingComputationOffset = new anchor.BN(randomBytes(8), "hex");
       // let backendNonce = randomBytes(16);
 
-
       // const triggerMatchingTx = await program.methods
       //   .triggerMatching(TriggerMatchingComputationOffset, backendNonce)
       //   .accountsPartial({
@@ -1446,7 +1402,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       //   })
       //   .signers([user1])
       //   .rpc({ commitment: "confirmed" });
-
 
       // console.log("Trigger matching tx", triggerMatchingTx);
 
