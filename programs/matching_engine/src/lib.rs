@@ -247,7 +247,6 @@ pub mod matching_engine {
                 let num_matches = field_0.field_2;
 
                 // Update orderbook
-
                 let mut orderbook_state = ctx.accounts.orderbook_state.load_mut()?;
                 orderbook_state.orderbook_nonce = orderbook_enc.nonce;
                 orderbook_state.orderbook_data = orderbook_enc.ciphertexts;

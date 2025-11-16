@@ -725,7 +725,11 @@ mod circuits {
     pub fn match_orders(
         clanker_authority: Shared,
         order_book_ctxt: Enc<Mxe, OrderBookFlat>,
-    ) -> (Enc<Mxe, OrderBookFlat>, Enc<Shared, MatchResult>, u8) {
+    ) -> (
+        Enc<Mxe, OrderBookFlat>, 
+        Enc<Shared, MatchResult>, 
+        u8
+    ) {
         let mut orderbook_flat = order_book_ctxt.to_arcis();
         let mut order_book = OrderBookFlat::to_orderbook(orderbook_flat);
 

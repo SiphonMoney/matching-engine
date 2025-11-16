@@ -172,6 +172,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
     if (!useDevnet) {
       await airdrop(provider, user1.publicKey, 100 * LAMPORTS_PER_SOL);
       await airdrop(provider, user2.publicKey, 100 * LAMPORTS_PER_SOL);
+      await airdrop(provider, backendKeypair.publicKey, 100 * LAMPORTS_PER_SOL);
     }
 
     // initialize a payer account to make token mints and their authority.
@@ -1645,43 +1646,43 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       // two order have already been submitted by user1 and user2 respectively 
       // now simply trigger the matching and listen for the matchesfound event
      
-      // const triggerMatchingOffset = new anchor.BN(
-      //   randomBytes(8),
-      //   "hex"
-      // );
-      // const triggerMatchingTx = await program.methods
-      //   .triggerMatching(
-      //     triggerMatchingOffset,
-      //     new anchor.BN(0)
-      //   )
-      //   .accountsPartial({  
-      //     computationAccount: getComputationAccAddress(
-      //       program.programId,
-      //       triggerMatchingOffset
-      //     ),
-      //     payer: backendKeypair.publicKey,
-      //     clusterAccount: clusterAccount,
-      //     mxeAccount: getMXEAccAddress(program.programId),
-      //     mempoolAccount: getMempoolAccAddress(program.programId),
-      //     executingPool: getExecutingPoolAccAddress(program.programId),
-      //     compDefAccount: getCompDefAccAddress(
-      //       program.programId,
-      //       Buffer.from(getCompDefAccOffset("trigger_matching")).readUInt32LE()
-      //     ),
-      //     systemProgram: SystemProgram.programId,
-      //     arciumProgram: getArciumProgramId(),
-      //     orderbookState: OrderbookPDA,
-      //   })
-      //   .signers([backendKeypair])
-      //   .rpc({ commitment: "confirmed" });
-      // console.log("triggerMatchingTx", triggerMatchingTx);
+      const triggerMatchingOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
+      );
+      const triggerMatchingTx = await program.methods
+        .triggerMatching(
+          triggerMatchingOffset,
+          new anchor.BN(0)
+        )
+        .accountsPartial({  
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            triggerMatchingOffset
+          ),
+          payer: backendKeypair.publicKey,
+          clusterAccount: clusterAccount,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(getCompDefAccOffset("match_orders")).readUInt32LE()
+          ),
+          systemProgram: SystemProgram.programId,
+          arciumProgram: getArciumProgramId(),
+          orderbookState: OrderbookPDA,
+        })
+        .signers([backendKeypair])
+        .rpc({ commitment: "confirmed" });
+      console.log("triggerMatchingTx", triggerMatchingTx);
 
-      // await awaitComputationFinalization(
-      //   provider,
-      //   triggerMatchingOffset,
-      //   program.programId,
-      //   "confirmed"
-      // );
+      await awaitComputationFinalization(
+        provider,
+        triggerMatchingOffset,
+        program.programId,
+        "confirmed"
+      );
 
 
     

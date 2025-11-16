@@ -8,7 +8,6 @@ use crate::SignerAccount;
 use crate::MatchOrdersCallback;
 use arcium_client::idl::arcium::types::CallbackAccount;
 
-const ORDERBOOK_SEED: &[u8] = b"order_book_state";
 use crate::ID;
 use crate::ID_CONST;
 
@@ -44,10 +43,12 @@ pub fn trigger_matching(
 
     ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
 
-    let callback_accounts = vec![CallbackAccount {
+    let callback_accounts = vec![
+        CallbackAccount {
         pubkey: ctx.accounts.orderbook_state.key(),
         is_writable: true,
-    }];
+    }
+    ];
 
     queue_computation(
         ctx.accounts,
