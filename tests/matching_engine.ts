@@ -88,7 +88,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       MatchingEngineIDL as anchor.Idl,
       provider
     );
-    clusterAccount = getClusterAccAddress(1078779259); // Use your cluster offset
+    clusterAccount = getClusterAccAddress(1078779259); // cluster offset for the arcium testnet
     console.log(
       "==================================================================================================================================:",
       clusterAccount.toBase58()
@@ -100,17 +100,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
     program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
     const arciumEnv = getArciumEnv();
     clusterAccount = arciumEnv.arciumClusterPubkey;
-    // clusterAccount = getClusterAccAddress(1078779259);
   }
 
-  // Configure the client to use the local cluster
-  // anchor.setProvider(anchor.AnchorProvider.env());
-  // const program = anchor.workspace.MatchingEngine as Program<MatchingEngine>;
-  // const provider = anchor.getProvider() as anchor.AnchorProvider;
-  // const arciumEnv = getArciumEnv();
-
-  // TODO ; change the seeds for deriving the orderaccount pda
-  // Test accounts
   let backendKeypair: Keypair;
   let backendSecretKey: Uint8Array;
   let backendPublicKey: Uint8Array;
@@ -120,7 +111,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
   let baseMint: PublicKey;
   let quoteMint: PublicKey;
   let OrderbookPDA: PublicKey;
-  let OrderbookflatPDA: PublicKey;
   let user1token1ATA: PublicKey;
   let user1token2ATA: PublicKey;
   let user2token1ATA: PublicKey;
@@ -131,20 +121,13 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
   let ata4: PublicKey;
   let User1Cipher: RescueCipher;
   let User1SharedSecret: Uint8Array;
+  const scaleFactor: number = 100;
 
   const User1PrivateKey = x25519.utils.randomSecretKey();
   const User1PublicKey = x25519.getPublicKey(User1PrivateKey);
+  const User2PrivateKey = x25519.utils.randomSecretKey();
+  const User2PublicKey = x25519.getPublicKey(User2PrivateKey);
 
-  // mxePublicKey = await getMXEPublicKeyWithRetry(
-  //   provider as anchor.AnchorProvider,
-  //   program.programId
-  // );
-
-  // User1SharedSecret = x25519.getSharedSecret(
-  //   User1PrivateKey,
-  //   mxePublicKey
-  // );
-  // User1Cipher = new RescueCipher(User1SharedSecret);
 
   // Event helper
   type Event = anchor.IdlEvents<(typeof program)["idl"]>;
@@ -203,12 +186,14 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       mintAuthority.publicKey
     );
     const user1Balance = await provider.connection.getBalance(user1.publicKey);
+    const user2Balance = await provider.connection.getBalance(user2.publicKey);
     console.log(
       "MintAuthority balance:",
       mintAuthorityBalance / LAMPORTS_PER_SOL,
       "SOL"
     );
     console.log("User1 balance:", user1Balance / LAMPORTS_PER_SOL, "SOL");
+    console.log("User2 balance:", user2Balance / LAMPORTS_PER_SOL, "SOL");
 
     // make two different tokens with same authority and then mint those tokens to both the users
     const token1Mint = await createMint(
@@ -230,30 +215,30 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       user1.publicKey,
       token1Mint,
       mintAuthority,
-      1000 * LAMPORTS_PER_SOL
+      1000*scaleFactor
     );
     const ata2 = await createATAAndMintTokens(
       provider,
       user1.publicKey,
       token2Mint,
       mintAuthority,
-      1000 * LAMPORTS_PER_SOL
+      1000*scaleFactor
     );
 
-    // const ata3 = await createATAAndMintTokens(
-    //   provider,
-    //   user2.publicKey,
-    //   token1Mint,
-    //   mintAuthority,
-    //   1000 * LAMPORTS_PER_SOL
-    // );
-    // const ata4 = await createATAAndMintTokens(
-    //   provider,
-    //   user2.publicKey,
-    //   token2Mint,
-    //   mintAuthority,
-    //   1000 * LAMPORTS_PER_SOL
-    // );
+    const ata3 = await createATAAndMintTokens(
+      provider,
+      user2.publicKey,
+      token1Mint,
+      mintAuthority,
+      1000*scaleFactor
+    );
+    const ata4 = await createATAAndMintTokens(
+      provider,
+      user2.publicKey,
+      token2Mint,
+      mintAuthority,
+      1000*scaleFactor
+    );
     console.log("Minted tokens to users\n");
 
     // For now, use placeholder mints (in real test, create actual SPL tokens)
@@ -261,8 +246,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
     quoteMint = token2Mint;
     user1token1ATA = ata1;
     user1token2ATA = ata2;
-    // user2token1ATA = ata3;
-    // user2token2ATA = ata4;
+    user2token1ATA = ata3;
+    user2token2ATA = ata4;
     console.log("programId", program.programId.toBase58());
     [OrderbookPDA] = deriveOrderbookPDA(program.programId);
     console.log("Orderbook PDA:", OrderbookPDA.toBase58());
@@ -926,7 +911,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       await program.methods
         .depositToLedger(
           Array.from(User1PublicKey),
-          new BN(100),
+          new BN(100 * scaleFactor),
           true,
           UpdateLedgerDepositComputationOffset
         )
@@ -991,8 +976,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       console.log("user1token2ATA info", vaultInfo3);
 
       // 2. Prepare order (using smaller values to reduce stack usage)
-      const amount = 10;
-      const price = 5;
+      const amount = 10 * scaleFactor;
+      const price = 5 * scaleFactor;
       const submitOrderComputationOffset = new anchor.BN(randomBytes(8), "hex");
 
       const orderId = 12;
@@ -1054,7 +1039,6 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
           baseMint: baseMint,
           vault: baseVaultPDA,
           orderAccount: orderAccountPDA,
-          // orderbookState: OrderbookPDA,
           userLedger: userLedgerPDA,
         })
         .signers([user1])
@@ -1170,50 +1154,456 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       }
     });
 
-    it("Test 1.3.3: Should handle user pubkey chunking correctly", async () => {
-      console.log("\n--- Test 1.3.3: User Pubkey Chunking ---");
 
-      // Test pubkey chunking
-      const testPubkey = user1.publicKey.toBuffer();
+    it("Should submit sell order", async () => {
 
-      // Split into 4x u64 chunks
-      const chunks = [
-        BigInt("0x" + testPubkey.slice(0, 8).toString("hex")),
-        BigInt("0x" + testPubkey.slice(8, 16).toString("hex")),
-        BigInt("0x" + testPubkey.slice(16, 24).toString("hex")),
-        BigInt("0x" + testPubkey.slice(24, 32).toString("hex")),
-      ];
+      // 1. Setup encryption
+      const [baseVaultPDA] = deriveVaultPDA(baseMint, program.programId);
+      const [quoteVaultPDA] = deriveVaultPDA(quoteMint, program.programId);
 
-      console.log("Original pubkey:", user1.publicKey.toBase58());
-      console.log(
-        "Chunks:",
-        chunks.map((c) => c.toString(16))
+      const [vaultAuthorityPDA] = deriveVaultAuthorityPDA(program.programId);
+
+      const [userLedgerPDA] = deriveUserLedgerPDA(
+        user2.publicKey,
+        program.programId
       );
 
-      // Reconstruct
-      const reconstructed = Buffer.concat([
-        Buffer.from(chunks[0].toString(16).padStart(16, "0"), "hex"),
-        Buffer.from(chunks[1].toString(16).padStart(16, "0"), "hex"),
-        Buffer.from(chunks[2].toString(16).padStart(16, "0"), "hex"),
-        Buffer.from(chunks[3].toString(16).padStart(16, "0"), "hex"),
-      ]);
-
-      console.log(
-        "Reconstructed pubkey:",
-        new PublicKey(reconstructed).toBase58()
+      const InitUserLedgerComputationOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
+      );
+      const UpdateLedgerDepositComputationOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
       );
 
-      console.log("✓ Pubkey chunking works correctly");
+      // Get MXE public key
+      mxePublicKey = await getMXEPublicKeyWithRetry(
+        provider as anchor.AnchorProvider,
+        program.programId
+      );
+
+      const User2SharedSecret = x25519.getSharedSecret(
+        User2PrivateKey,
+        mxePublicKey
+      );
+      const User2Cipher = new RescueCipher(User2SharedSecret);
+
+      const userLedgerNonce = randomBytes(16);
+
+      const initializeUserLedgerPromise = awaitEvent(
+        "userLedgerInitializedEvent"
+      );
+
+      console.log(
+        "initializing user ledger======================================================="
+      );
+      // list all the accounts that are needed for the initialize user ledger instruction
+      console.log("accounts needed for the initialize user ledger instruction");
+      console.log(
+        "computationAccount",
+        getComputationAccAddress(
+          program.programId,
+          InitUserLedgerComputationOffset
+        )
+      );
+      console.log("user", user2.publicKey.toBase58());
+      console.log("clusterAccount", clusterAccount.toBase58());
+      console.log("mxeAccount", getMXEAccAddress(program.programId).toBase58());
+      console.log(
+        "mempoolAccount",
+        getMempoolAccAddress(program.programId).toBase58()
+      );
+      console.log(
+        "executingPool",
+        getExecutingPoolAccAddress(program.programId).toBase58()
+      );
+      console.log(
+        "compDefAccount",
+        getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("init_user_ledger")).readUInt32LE()
+        ).toBase58()
+      );
+      console.log("systemProgram", SystemProgram.programId.toBase58());
+      console.log("arciumProgram", getArciumProgramId().toBase58());
+      console.log("userLedger", userLedgerPDA.toBase58());
+      const [OrderbookflatPDA] = deriveOrderbook(program.programId);
+
+      console.log("we are entering to initialize the encrypted orderbook");
+
+      const initEncryptedOrderbookNonce = randomBytes(16);
+
+      const initEncryptedOrderbookComputationOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
+      );
+
+      // const initEncryptedOrderbookTx = await program.methods
+      //   .initEncryptedOrderbook(
+      //     initEncryptedOrderbookComputationOffset,
+      //     new anchor.BN(deserializeLE(initEncryptedOrderbookNonce).toString())
+      //   )
+      //   .accounts({
+      //     computationAccount: getComputationAccAddress(
+      //       program.programId,
+      //       initEncryptedOrderbookComputationOffset
+      //     ),
+      //     payer: authority.publicKey,
+      //     mxeAccount: getMXEAccAddress(program.programId),
+      //     mempoolAccount: getMempoolAccAddress(program.programId),
+      //     executingPool: getExecutingPoolAccAddress(program.programId),
+      //     compDefAccount: getCompDefAccAddress(
+      //       program.programId,
+      //       Buffer.from(getCompDefAccOffset("init_order_book")).readUInt32LE()
+      //     ),
+      //     clusterAccount: clusterAccount,
+      //     orderbookState: OrderbookPDA,
+      //   })
+      //   .signers([authority])
+      //   .rpc({ commitment: "confirmed" });
+
+      // console.log(
+      //   "Encrypted orderbook initialized with signature:",
+      //   initEncryptedOrderbookTx
+      // );
+
+      // Wait for initGame computation finalization
+      // const initEncryptedOrderbookFinalizeSig =
+      //   await awaitComputationFinalization(
+      //     provider as anchor.AnchorProvider,
+      //     initEncryptedOrderbookComputationOffset,
+      //     program.programId,
+      //     "confirmed"
+      //   );
+      // console.log(
+      //   "Init game finalize signature:",
+      //   initEncryptedOrderbookFinalizeSig
+      // );
+
+      // const orderBookStatenew = await getOrderBookState(program);
+      // console.log("orderBookState new", orderBookStatenew);
+
+      // initlialize a user ledger and then deposit to the ledger
+
+      try {
+        await program.methods
+          .initializeUserLedger(
+            Array.from(User2PublicKey),
+            new anchor.BN(deserializeLE(userLedgerNonce).toString()),
+            InitUserLedgerComputationOffset
+          )
+          .accountsPartial({
+            computationAccount: getComputationAccAddress(
+              program.programId,
+              InitUserLedgerComputationOffset
+            ),
+            user: user2.publicKey,
+            clusterAccount: clusterAccount,
+            mxeAccount: getMXEAccAddress(program.programId),
+            mempoolAccount: getMempoolAccAddress(program.programId),
+            executingPool: getExecutingPoolAccAddress(program.programId),
+            compDefAccount: getCompDefAccAddress(
+              program.programId,
+              Buffer.from(
+                getCompDefAccOffset("init_user_ledger")
+              ).readUInt32LE()
+            ),
+            systemProgram: SystemProgram.programId,
+            arciumProgram: getArciumProgramId(),
+            userLedger: userLedgerPDA,
+          })
+          .signers([user2])
+          .rpc({ commitment: "confirmed" });
+      } catch (error) {
+        const log = await error.getLogs();
+        console.log("log", log);
+      }
+
+      const info11 = await program.account.userPrivateLedger.fetch(
+        userLedgerPDA
+      );
+      console.log("user ledger account info 2", info11);
+
+      await awaitComputationFinalization(
+        provider,
+        InitUserLedgerComputationOffset,
+        program.programId,
+        "confirmed"
+      );
+      const initializeUserLedgerEvent = await initializeUserLedgerPromise;
+      console.log(
+        "initialized user ledger event for",
+        initializeUserLedgerEvent.user.toBase58()
+      );
+
+      const info12 = await program.account.userPrivateLedger.fetch(
+        userLedgerPDA
+      );
+      console.log("user ledger account info 3", info12);
+
+      console.log("User ledger initialized");
+
+      console.log("entering deposit to ledger");
+
+      const userLedgerDepositedPromise = awaitEvent("userLedgerDepositedEvent");
+
+      await program.methods
+        .depositToLedger(
+          Array.from(User2PublicKey),
+          new BN(100 * scaleFactor),
+          true,
+          UpdateLedgerDepositComputationOffset
+        )
+        .accounts({
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            UpdateLedgerDepositComputationOffset
+          ),
+          user: user2.publicKey,
+          clusterAccount: clusterAccount,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(
+              getCompDefAccOffset("update_ledger_deposit")
+            ).readUInt32LE()
+          ),
+          systemProgram: SystemProgram.programId,
+          arciumProgram: getArciumProgramId(),
+          userLedger: userLedgerPDA,
+          mint: quoteMint,
+          vault: quoteVaultPDA,
+          userTokenAccount: user2token2ATA,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          vaultAuthority: vaultAuthorityPDA,
+        })
+        .signers([user2])
+        .rpc({ commitment: "confirmed" });
+
+      await awaitComputationFinalization(
+        provider,
+        UpdateLedgerDepositComputationOffset,
+        program.programId,
+        "confirmed"
+      );
+      console.log("Tokens deposited to ledger");
+
+      const userLedgerDepositedEvent = await userLedgerDepositedPromise;
+
+      const userLedgerDepositedEventNonce = Uint8Array.from(
+        userLedgerDepositedEvent.balanceNonce.toArray("le", 16)
+      );
+
+      let userBalances = User2Cipher.decrypt(
+        [...userLedgerDepositedEvent.encryptedBalances],
+        userLedgerDepositedEventNonce
+      );
+      console.log(
+        "userBalances==============================================================>",
+        userBalances
+      );
+      // check if the vault does have the correct amount of tokens
+      const vaultInfo = await getAccount(provider.connection, quoteVaultPDA);
+      console.log("vault info", vaultInfo);
+      // expect(vaultInfo.amount.toString()).to.equal(new BN(100).toString());
+      const vaultInfo2 = await getAccount(provider.connection, user2token1ATA);
+      console.log("user2token1ATA info", vaultInfo2);
+      const vaultInfo3 = await getAccount(provider.connection, user2token2ATA);
+      console.log("user2token2ATA info", vaultInfo3);
+
+      // 2. Prepare order (using smaller values to reduce stack usage)
+      const amount = 50 * scaleFactor;
+      const price = 0.2 * scaleFactor;
+      const submitOrderComputationOffset = new anchor.BN(randomBytes(8), "hex");
+
+      const orderId = 14;
+
+      const [orderAccountPDA] = deriveOrderAccountPDA(
+        new anchor.BN(orderId),
+        program.programId
+      );
+
+      const User2Nonce = randomBytes(16);
+      const User2Ciphertext = User2Cipher.encrypt(
+        [BigInt(amount), BigInt(price)],
+        User2Nonce
+      );
+
+      const orderSubmittedCheckSuccessPromise = awaitEvent(
+        "orderSubmittedCheckSuccessEvent"
+      );
+      const orderSubmittedCheckFailedPromise = awaitEvent(
+        "orderSubmittedCheckFailedEvent"
+      );
+
+      console.log(
+        "before the submit order check================================="
+      );
+
+      const submitOrderCheckComputationOffset = new anchor.BN(
+        randomBytes(8),
+        "hex"
+      );
+      const submitOrderCheckTx = await program.methods
+        .submitOrderCheck(
+          Array.from(User2Ciphertext[0]),
+          Array.from(User2Ciphertext[1]),
+          Array.from(User2PublicKey),
+          0, // buy
+          submitOrderCheckComputationOffset,
+          new anchor.BN(orderId),
+          new anchor.BN(deserializeLE(User2Nonce).toString())
+        )
+        .accountsPartial({
+          computationAccount: getComputationAccAddress(
+            program.programId,
+            submitOrderCheckComputationOffset
+          ),
+          user: user2.publicKey,
+          clusterAccount: clusterAccount,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(program.programId),
+          executingPool: getExecutingPoolAccAddress(program.programId),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(
+              getCompDefAccOffset("submit_order_check")
+            ).readUInt32LE()
+          ),
+          systemProgram: SystemProgram.programId,
+          arciumProgram: getArciumProgramId(),
+          baseMint: quoteMint,
+          vault: quoteVaultPDA,
+          orderAccount: orderAccountPDA,
+          userLedger: userLedgerPDA,
+        })
+        .signers([user2])
+        .rpc({ commitment: "confirmed" });
+
+      console.log("submitOrderCheckTx", submitOrderCheckTx);
+
+      await awaitComputationFinalization(
+        provider,
+        submitOrderCheckComputationOffset,
+        program.programId,
+        "confirmed"
+      );
+
+      console.log("submitOrderCheck completed");
+
+      //check the contents of the order account
+      const orderAccount = await program.account.orderAccount.fetch(
+        orderAccountPDA
+      );
+
+      // decryypt the content of the order account's encryptedOrder field
+      const decryptedOrder = User2Cipher.decrypt(
+        [...orderAccount.encryptedOrder],
+        Uint8Array.from(orderAccount.orderNonce.toArray("le", 16))
+      );
+      console.log("decrypted order", decryptedOrder);
+
+      let success = false;
+
+      try {
+        const submitOrderCheckEvent = await Promise.race([
+          orderSubmittedCheckSuccessPromise,
+          orderSubmittedCheckFailedPromise,
+        ]);
+
+        console.log("submitOrderCheckEvent", submitOrderCheckEvent);
+
+        if ("success" in submitOrderCheckEvent) {
+          console.log("Received OrderSubmittedCheckSuccessEvent.");
+          success = true;
+
+          // console.log("user balances", userBalances);
+        } else {
+          console.log("Received OrderSubmittedCheckFailedEvent.");
+        }
+      } catch (e) {
+        console.error("Error waiting for withdraw verify event:", e);
+        throw e;
+      }
+
+      // ========== STEP 2: If verified, cranker executes order submission on the encrypted orderbook ==========
+      if (success) {
+        console.log("\n🤖 STEP 2: cranker executing order submission...");
+        const tx = await program.methods
+          .submitOrder(
+            Array.from(User2Ciphertext[0]),
+            Array.from(User2Ciphertext[1]),
+            Array.from(User2PublicKey),
+            0, // buy
+            submitOrderComputationOffset,
+            new anchor.BN(orderId),
+            new anchor.BN(deserializeLE(User2Nonce).toString())
+          )
+          .accountsPartial({
+            computationAccount: getComputationAccAddress(
+              program.programId,
+              submitOrderComputationOffset
+            ),
+            user: user2.publicKey,
+            clusterAccount: clusterAccount,
+            mxeAccount: getMXEAccAddress(program.programId),
+            mempoolAccount: getMempoolAccAddress(program.programId),
+            executingPool: getExecutingPoolAccAddress(program.programId),
+            compDefAccount: getCompDefAccAddress(
+              program.programId,
+              Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
+            ),
+            systemProgram: SystemProgram.programId,
+            arciumProgram: getArciumProgramId(),
+            baseMint: quoteMint,
+            vault: quoteVaultPDA,
+            orderbookState: OrderbookPDA,
+          })
+          .signers([user2])
+          .rpc({ commitment: "confirmed" });
+
+        console.log("tx", tx);
+
+        // 6. Wait for MPC finalization
+        await awaitComputationFinalization(
+          provider,
+          submitOrderComputationOffset,
+          program.programId,
+          "confirmed"
+        );
+
+        console.log("\n✅ ==============================Order submitted successfully===========================!");
+        const userLedger = await program.account.userPrivateLedger.fetch(
+          userLedgerPDA
+        );
+  
+        const thisnonce = Uint8Array.from(
+          userLedger.balanceNonce.toArray("le", 16)
+        );
+        const userLedgerBalances = User2Cipher.decrypt(
+          [...userLedger.encryptedBalances],
+          thisnonce
+        );
+        console.log("user ledger balances", userLedgerBalances);
+      } else {
+        throw new Error("No event received - something went wrong!");
+      }
     });
+    
+
 
     it("Test 1.3.4: Should encrypt/decrypt correctly", async () => {
       console.log("\n--- Test 1.3.4: Encryption/Decryption ---");
 
       const { cipher } = await setupUserEncryption(provider, program.programId);
 
-      const amount = BigInt(100);
-      const price = BigInt(50);
-      const plaintext = [amount, price];
+      const amount = 100 * scaleFactor;
+      const price = 50 * scaleFactor;
+      const plaintext = [BigInt(amount), BigInt(price)];
       const nonce = generateNonce();
 
       console.log("Original values:");
@@ -1235,8 +1625,8 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       console.log("  - Amount:", decrypted[0].toString());
       console.log("  - Price:", decrypted[1].toString());
 
-      expect(decrypted[0]).to.equal(amount);
-      expect(decrypted[1]).to.equal(price);
+      expect(decrypted[0]).to.equal(BigInt(amount));
+      expect(decrypted[1]).to.equal(BigInt(price));
 
       console.log("✓ Encryption/decryption works correctly");
     });
@@ -1251,178 +1641,50 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       console.log("  - Submit 1 buy at 105 USDC/SOL");
       console.log("  - Submit 1 sell at 95 USDC/SOL");
 
-      // const User1Cipher = new RescueCipher(User1SharedSecret);
 
-      // let amount1 = BigInt(100);
-      // let price1 = BigInt(50);
-      // let order1Id = 12;
-
-      // const submitOrder1ComputationOffset = new anchor.BN(randomBytes(8), "hex");
-
-      // const User1Nonce = randomBytes(16);
-      // const User1Ciphertext = User1Cipher.encrypt(
-      //   [BigInt(amount1), BigInt(price1)],
-      //   User1Nonce
+      // two order have already been submitted by user1 and user2 respectively 
+      // now simply trigger the matching and listen for the matchesfound event
+     
+      // const triggerMatchingOffset = new anchor.BN(
+      //   randomBytes(8),
+      //   "hex"
       // );
-
-      // let baseVaultPDA = await deriveVaultPDA(baseMint, program.programId);
-      // let orderAccountPDA = await deriveOrderAccountPDA(new anchor.BN(order1Id), program.programId);
-      // let userLedgerPDA = await deriveUserLedgerPDA(user1.publicKey, program.programId);
-
-      // const buyOrder = await program.methods
-      // .submitOrder(
-      //   Array.from(User1Ciphertext[0]),
-      //   Array.from(User1Ciphertext[1]),
-      //   Array.from(User1PublicKey),
-      //   0, // buy
-      //   submitOrder1ComputationOffset,
-      //   new anchor.BN(order1Id),
-      //   new anchor.BN(deserializeLE(User1Nonce).toString())
-      // )
-      // .accountsPartial({
-      //   computationAccount: getComputationAccAddress(
-      //     program.programId,
-      //     submitOrder1ComputationOffset
-      //   ),
-      //   user: user1.publicKey,
-      //   signPdaAccount: deriveSignerAccountPDA(program.programId),
-      //   poolAccount: deriveArciumFeePoolAccountAddress(),
-      //   clusterAccount: clusterAccount,
-      //   mxeAccount: getMXEAccAddress(program.programId),
-      //   mempoolAccount: getMempoolAccAddress(program.programId),
-      //   executingPool: getExecutingPoolAccAddress(program.programId),
-      //   compDefAccount: getCompDefAccAddress(
-      //     program.programId,
-      //     Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
-      //   ),
-      //   clockAccount: getClockAccAddress(),
-      //   systemProgram: SystemProgram.programId,
-      //   arciumProgram: getArciumProgramId(),
-      //   baseMint: baseMint,
-      //   vault: baseVaultPDA,
-      //   orderAccount: orderAccountPDA,
-      //   orderbookState: OrderbookPDA,
-      //   userLedger: userLedgerPDA,
-      // })
-      // .signers([user1])
-      // .rpc({ commitment: "confirmed" });
-
-      // await awaitComputationFinalization(
-      //   provider,
-      //   submitOrder1ComputationOffset,
-      //   program.programId,
-      //   "confirmed"
-      // );
-
-      // const User2Cipher = new RescueCipher(User1SharedSecret);
-
-      // let amount2 = BigInt(100);
-      // let price2 = BigInt(50);
-      // let order2Id = 11;
-
-      // const submitOrder2ComputationOffset = new anchor.BN(randomBytes(8), "hex");
-
-      // const User2Nonce = randomBytes(16);
-      // const User2Ciphertext = User2Cipher.encrypt(
-      //   [BigInt(amount1), BigInt(price1)],
-      //   User1Nonce
-      // );
-
-      // let baseVault2PDA = await deriveVaultPDA(baseMint, program.programId);
-      // let orderAccount2PDA = await deriveOrderAccountPDA(new anchor.BN(order1Id), program.programId);
-      // let userLedger2PDA = await deriveUserLedgerPDA(user1.publicKey, program.programId);
-
-      // const sellOrder = await program.methods
-      // .submitOrder(
-      //   Array.from(User2Ciphertext[0]),
-      //   Array.from(User2Ciphertext[1]),
-      //   Array.from(User1PublicKey),
-      //   0, // buy
-      //   submitOrder1ComputationOffset,
-      //   new anchor.BN(order2Id),
-      //   new anchor.BN(deserializeLE(User2Nonce).toString())
-      // )
-      // .accountsPartial({
-      //   computationAccount: getComputationAccAddress(
-      //     program.programId,
-      //     submitOrder1ComputationOffset
-      //   ),
-      //   user: user1.publicKey,
-      //   signPdaAccount: deriveSignerAccountPDA(program.programId),
-      //   poolAccount: deriveArciumFeePoolAccountAddress(),
-      //   clusterAccount: clusterAccount,
-      //   mxeAccount: getMXEAccAddress(program.programId),
-      //   mempoolAccount: getMempoolAccAddress(program.programId),
-      //   executingPool: getExecutingPoolAccAddress(program.programId),
-      //   compDefAccount: getCompDefAccAddress(
-      //     program.programId,
-      //     Buffer.from(getCompDefAccOffset("submit_order")).readUInt32LE()
-      //   ),
-      //   clockAccount: getClockAccAddress(),
-      //   systemProgram: SystemProgram.programId,
-      //   arciumProgram: getArciumProgramId(),
-      //   baseMint: baseMint,
-      //   vault: baseVault2PDA,
-      //   orderAccount: orderAccount2PDA,
-      //   orderbookState: OrderbookPDA,
-      //   userLedger: userLedger2PDA,
-      // })
-      // .signers([user1])
-      // .rpc({ commitment: "confirmed" });
-
-      // await awaitComputationFinalization(
-      //   provider,
-      //   submitOrder2ComputationOffset,
-      //   program.programId,
-      //   "confirmed"
-      // );
-      // console.log("Trigger matching called");
-      // const TriggerMatchingComputationOffset = new anchor.BN(randomBytes(8), "hex");
-      // let backendNonce = randomBytes(16);
-
       // const triggerMatchingTx = await program.methods
-      //   .triggerMatching(TriggerMatchingComputationOffset, backendNonce)
-      //   .accountsPartial({
+      //   .triggerMatching(
+      //     triggerMatchingOffset,
+      //     new anchor.BN(0)
+      //   )
+      //   .accountsPartial({  
       //     computationAccount: getComputationAccAddress(
       //       program.programId,
-      //       TriggerMatchingComputationOffset
+      //       triggerMatchingOffset
       //     ),
-      //     payer: user1.publicKey,
+      //     payer: backendKeypair.publicKey,
       //     clusterAccount: clusterAccount,
       //     mxeAccount: getMXEAccAddress(program.programId),
       //     mempoolAccount: getMempoolAccAddress(program.programId),
       //     executingPool: getExecutingPoolAccAddress(program.programId),
       //     compDefAccount: getCompDefAccAddress(
       //       program.programId,
-      //       Buffer.from(getCompDefAccOffset("match_orders")).readUInt32LE()
+      //       Buffer.from(getCompDefAccOffset("trigger_matching")).readUInt32LE()
       //     ),
       //     systemProgram: SystemProgram.programId,
       //     arciumProgram: getArciumProgramId(),
       //     orderbookState: OrderbookPDA,
       //   })
-      //   .signers([user1])
+      //   .signers([backendKeypair])
       //   .rpc({ commitment: "confirmed" });
-
-      // console.log("Trigger matching tx", triggerMatchingTx);
+      // console.log("triggerMatchingTx", triggerMatchingTx);
 
       // await awaitComputationFinalization(
       //   provider,
-      //   TriggerMatchingComputationOffset,
+      //   triggerMatchingOffset,
       //   program.programId,
       //   "confirmed"
       // );
 
-      // console.log("  - Trigger matching computation");
 
-      // console.log("  - Verify nonce increment (CRITICAL!)");
-
-      // console.log("  - Verify MatchResultEvent");
-
-      // const eventPromise = awaitEvent("matchesFoundEvent");
-      // const event = await eventPromise;
-
-      // TODO : asserstion about the things returned in the event
-      // console.log("match result event", event);
+    
     });
 
     it("Test 1.4.2: Should enforce rate limiting (15s)", async () => {
@@ -1535,7 +1797,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
       }
 
       // Use user1 who already has a ledger and deposited funds
-      const withdrawAmount = 30; // Withdraw 30 tokens (user deposited 100 earlier)
+      const withdrawAmount = 30 * scaleFactor; // Withdraw 30 tokens (user deposited 100 earlier)
 
       mxePublicKey = await getMXEPublicKeyWithRetry(
         provider as anchor.AnchorProvider,
@@ -1714,7 +1976,7 @@ describe("Dark Pool Matching Engine - Core Functionality Tests", async () => {
         "\n=== Test 1.7.2: Withdrawal with Insufficient Balance ===\n"
       );
 
-      const withdrawAmount = 10000; // Try to withdraw way more than available
+      const withdrawAmount = 10000 * scaleFactor; // Try to withdraw way more than available
 
       const [userLedgerPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from("user_ledger"), user1.publicKey.toBuffer()],

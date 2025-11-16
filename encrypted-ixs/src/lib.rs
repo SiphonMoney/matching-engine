@@ -7,6 +7,7 @@ mod circuits {
     pub const MAX_ORDERS: usize = 4;
     pub const MAX_MATCHES_PER_BATCH: usize = 4;
     pub const POW64: u128 = 18446744073709551616;
+    pub const SCALE_FACTOR: u64 = 100;  // For 2 decimal places (1.34 -> 134)
 
     pub const POWS_OF_256: [u128; 8] = [
         1,
@@ -544,11 +545,14 @@ mod circuits {
         let mut ledger = *(user_ledger.to_arcis());
 
         // Calculate required amount
+        // Note: amount and price are scaled by SCALE_FACTOR (100 for 2 decimals)
+        // When multiplying two scaled values, divide by SCALE_FACTOR to get correct scale
         let required = if order_type == 0 {
             // Buy order needs quote token
-            sensitive.amount * sensitive.price
+            // amount * price gives result scaled by SCALE_FACTOR^2, so divide by SCALE_FACTOR
+            (sensitive.amount * sensitive.price) / SCALE_FACTOR
         } else {
-            // Sell order needs base token
+            // Sell order needs base token (amount is already scaled correctly)
             sensitive.amount
         };
 
@@ -629,11 +633,13 @@ mod circuits {
         let mut orderbook = OrderBookFlat::to_orderbook(orderbook_flat);
 
         // Calculate required amount
+        // Note: amount and price are scaled by SCALE_FACTOR (100 for 2 decimals)
+        // When multiplying two scaled values, divide by SCALE_FACTOR to get correct scale
         let required = if order_type == 0 {
             // Buy order needs quote token
             sensitive.amount * sensitive.price
         } else {
-            // Sell order needs base token
+            // Sell order needs base token (amount is already scaled correctly)
             sensitive.amount
         };
 
